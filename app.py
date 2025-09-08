@@ -1,6 +1,6 @@
 from fastapi import FastAPI, status, HTTPException
 from datetime import date, datetime
-
+from pydantic import BaseModel, EmailStr
 
 app = FastAPI()
 
@@ -12,13 +12,14 @@ def equipo():
 
 #DEFINO PRIMERO USUARIOS
 class Usuario:
-    def __init__(self, email: str, password: str, int, telefono:int, str, nombre: str, apellido:str, dni:int, fechaNacimiento:date):
-        self.nombre = nombre
-        self.apellido = apellido
-        self.telefono = telefono
-        self.fechaNacimiento = fechaNacimiento
+    def __init__(self, email: str, password: str, telefono: int, nombre: str, apellido: str, dni: int, fechaNacimiento: date):
         self.email = email
         self.password = password
+        self.telefono = telefono
+        self.nombre = nombre
+        self.apellido = apellido
+        self.dni = dni
+        self.fechaNacimiento = fechaNacimiento
 
 
 #ACA SE VA A GENERAR LISTA DE USUARIO
@@ -33,9 +34,30 @@ def buscar_usuario_por_email(email: str):
             return i
     return None
 
-#ACA SE VA A GENERAR LISTA DE USUARIO
-#APARTADO PARA REGISTER
+#REGISTRAR USUARIO
 
-#APARTADO DE LOGIN
+class UsuarioIn(BaseModel):
+    email: EmailStr
+    password: str
+    telefono: int
+    nombre: str
+    apellido: str
+    dni: int
+    fechaNacimiento: date
+
+@app.post("/register", status_code=status.HTTP_201_CREATED)
+def register(usuario: UsuarioIn):
+    #verifico si ya existe
+    if buscar_usuario_por_email(usuario.email):
+        raise HTTPException(status_code=400, detail="El mail ya esta registrado")
+    
+    nuevo = Usuario(**usuario.dict()) #Esto despues lo tengo que chequear :P
+    USUARIOS.append(nuevo)
+
+    return {"mensaje": "Usuario registrado con exito"}
+
+
+
+#APARTADO DE LOGIN (Despues lo armo, toy estudiando arquitectura jsjsjs. Atte: Nico)
 
 #APARTADO PARA CORROBORAR SI ESTAMOS HABILITADOS PARA OBTENER UN TURNO

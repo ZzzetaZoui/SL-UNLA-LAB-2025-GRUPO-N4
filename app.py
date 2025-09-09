@@ -56,8 +56,17 @@ def register(usuario: UsuarioIn):
 
     return {"mensaje": "Usuario registrado con exito"}
 
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
 
+@app.post("/login")
+def login(data: LoginIn):
+    usuario = buscar_usuario_por_email(data.email)
+    if not usuario or usuario.password != data.password:
+        raise HTTPException(status_code=401, detail="Datos erroneos")
+    
+    return {"mensaje": f"Bienvenido {usuario.nombre}"}
 
-#APARTADO DE LOGIN (Despues lo armo, toy estudiando arquitectura jsjsjs. Atte: Nico)
 
 #APARTADO PARA CORROBORAR SI ESTAMOS HABILITADOS PARA OBTENER UN TURNO

@@ -1,7 +1,9 @@
 from fastapi import FastAPI, status, HTTPException
 from datetime import date, datetime
 from pydantic import BaseModel, EmailStr
-from models import Usuario, USUARIOS, buscar_usuario_por_email, registrar_usuario
+from models import Usuario, Login, USUARIOS, buscar_usuario_por_email, registrar_usuario
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
 
 app = FastAPI()
 
@@ -11,21 +13,20 @@ app = FastAPI()
 def equipo():
     return "Somos el mejor equipo del mundo"
 
-class UsuarioIn(BaseModel):
-    email: EmailStr
-    password: str
-    telefono: int
-    nombre: str
-    apellido: str
-    dni: int
-    fechaNacimiento: date
 
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
+#Incluirá para errores genericos, para poder encapsular si el 400 u otro fallara. atte:ZOE
+#También modifique que los models se trasladen a models.py para mayor organizacion y que
+#se visualice más ordenado
+@app.exception_handler(Exception)
+async def generic_500_handler(request: Request, e: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor", "error": str(e)},
+    )
+
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
-def register(usuario: UsuarioIn):
+def register(usuario: Usuario):
     #verifico si ya existe
     if buscar_usuario_por_email(usuario.email):
         raise HTTPException(status_code=400, detail="El mail ya esta registrado")
@@ -36,7 +37,7 @@ def register(usuario: UsuarioIn):
     return {"mensaje": "Usuario registrado con exito"}
 
 @app.post("/login")
-def login(data: LoginIn):
+def login(data: Login):
     usuario = buscar_usuario_por_email(data.email)
     if not usuario or usuario.password != data.password:
         raise HTTPException(status_code=401, detail="Datos erroneos")

@@ -1,7 +1,10 @@
 from datetime import date, time
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import Column, Integer, String, Date, Time, Enum, ForeignKey
+from sqlalchemy.orm import declarative_base, relationship
 
+Base = declarative_base()
 
 class Usuario(BaseModel):
     nombre: str

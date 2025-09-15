@@ -16,7 +16,7 @@ app = FastAPI()
 #ESTE ES UN EJEMPLO PARA VERIFICAR QUE SIRVE 
 @app.get("/equipo")
 def equipo():
-    return "Somos el mejor equipo del mundo"
+    return "Grupo 4"
 
 
 #Incluirá para errores genericos, para poder encapsular si el 400 u otro fallara. atte:ZOE
@@ -98,4 +98,21 @@ def crear_turno(turno: TurnoIn):
         TURNOS.append(turno)
         return TurnoOut(fecha=turno.fecha, hora=turno.hora.strftime("%H:M%"), persona_id=turno.persona_id)
 
+@app.get("/tunos-disponibles", response_model=List[str])
+def turnos_disponibles(fecha: date = Query(..., description= "Fecha para consultar turnos")):
+    inicio = time(0,0)
+    fin = time(17,0)
+    delta = timedelta(minutes=30)
 
+    horarios = []
+    actual -0 datetime.combine(fecha, inicio)
+    fin_datetime = datetime.combine(fecha, fin)
+
+    while actual <= fin_datetime:
+        horarios.append(actual.time())
+        actual += delta
+    
+    ocupados = [t.hora for t in TURNOS if t.fecha == fecha]
+    disponibles = [h.strftime("%H:M%") for h in horarios if h not in ocupados]
+
+    return disponibles

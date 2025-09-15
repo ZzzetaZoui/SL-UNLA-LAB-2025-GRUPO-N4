@@ -1,6 +1,7 @@
 from fastapi import FastAPI, status, HTTPException, Query
 from datetime import date, datetime, timedelta, date
 from pydantic import BaseModel, EmailStr
+from datetime import time
 from models import (
     Usuario, Login, USUARIOS, buscar_usuario_por_email,
     PersonaIn, PersonaOut, listar_personas, obtener_persona,
@@ -95,24 +96,30 @@ def crear_turno(turno: TurnoIn):
     for t in TURNOS:
         if t.fecha == turno.fecha and t.hora == turno.hora:
             raise HTTPException(status_code=400, detail="Turno ocupado")
-        TURNOS.append(turno)
-        return TurnoOut(fecha=turno.fecha, hora=turno.hora.strftime("%H:M%"), persona_id=turno.persona_id)
 
-@app.get("/tunos-disponibles", response_model=List[str])
-def turnos_disponibles(fecha: date = Query(..., description= "Fecha para consultar turnos")):
-    inicio = time(0,0)
-    fin = time(17,0)
+    TURNOS.append(turno)
+    return TurnoOut(
+        fecha=turno.fecha,
+        hora=turno.hora.strftime("%H:%M"),
+        persona_id=turno.persona_id
+    )
+
+
+@app.get("/turnos-disponibles", response_model=List[str])
+def turnos_disponibles(fecha: date = Query(..., description="Fecha para consultar turnos")):
+    inicio = time(0, 0)
+    fin = time(17, 0)
     delta = timedelta(minutes=30)
 
     horarios = []
-    actual -0 datetime.combine(fecha, inicio)
+    actual = datetime.combine(fecha, inicio)
     fin_datetime = datetime.combine(fecha, fin)
 
     while actual <= fin_datetime:
         horarios.append(actual.time())
         actual += delta
-    
+
     ocupados = [t.hora for t in TURNOS if t.fecha == fecha]
-    disponibles = [h.strftime("%H:M%") for h in horarios if h not in ocupados]
+    disponibles = [h.strftime("%H:%M") for h in horarios if h not in ocupados]
 
     return disponibles

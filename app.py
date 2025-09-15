@@ -1,11 +1,12 @@
-from fastapi import FastAPI, status, HTTPException
-from datetime import date, datetime
+from fastapi import FastAPI, status, HTTPException, Query
+from datetime import date, datetime, timedelta, date
 from pydantic import BaseModel, EmailStr
 from models import (
     Usuario, Login, USUARIOS, buscar_usuario_por_email,
     PersonaIn, PersonaOut, listar_personas, obtener_persona,
-    crear_persona, modificar_persona, eliminar_persona
-)
+    crear_persona, modificar_persona, eliminar_persona, TurnoIn,
+    TurnoOut, TURNOS)
+from typing import List
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
@@ -89,4 +90,12 @@ def registrar_usuario(u: Usuario) -> Usuario:
     USUARIOS.append(u)
     return u
 
-#Ordene un poco las files y organicé algunas cosas ATTE: Nico
+@app.post("/turnos", response_model=TurnoOut, status_code=201)
+def crear_turno(turno: TurnoIn):
+    for t in TURNOS:
+        if t.fecha == turno.fecha and t.hora == turno.hora:
+            raise HTTPException(status_code=400, detail="Turno ocupado")
+        TURNOS.append(turno)
+        return TurnoOut(fecha=turno.fecha, hora=turno.hora.strftime("%H:M%"), persona_id=turno.persona_id)
+
+

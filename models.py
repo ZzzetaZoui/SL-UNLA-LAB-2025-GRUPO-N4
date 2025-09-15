@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, time
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr
+
 
 class Usuario(BaseModel):
     nombre: str
@@ -40,6 +41,29 @@ class PersonaOut(PersonaIn):
 PERSONAS: List[PersonaOut] = []
 _next_pid = 1
 
+class TurnoIn(BaseModel):
+    persona_id: int
+    fecha: date
+    hora: time 
+
+class TurnoOut(BaseModel):
+    fecha: date
+    hora: str
+    persona_id: int
+
+TURNOS: List[TurnoIn] = []
+
+
+class Turno(Base):
+    __tablename__ = "turnos"
+    id = Column(Integer, primary_key=True)
+    fecha = Column(Date, nullable=False)
+    hora = Column(Time, nullable=False)
+    estado = Column(Enum("pendiente", "cancelado", "confirmado", "asistido", name="estado_turno"), default="pendiente")
+    persona_id = Column(Integer, ForeignKey("personas.id"))
+    persona = relationship("Persona", back_populates="turnos")
+
+
 def _dump(model: BaseModel) -> dict:
     """Compat: Pydantic v2 (model_dump) / v1 (dict)."""
     return model.model_dump() if hasattr(model, "model_dump") else model.dict()
@@ -74,3 +98,4 @@ def eliminar_persona(pid: int) -> bool:
         return False
     PERSONAS.remove(p)
     return True
+

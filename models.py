@@ -1,6 +1,6 @@
 from datetime import date
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr
-
 
 class Usuario(BaseModel):
     nombre: str
@@ -13,3 +13,64 @@ class Usuario(BaseModel):
 class Login(BaseModel):
     email: EmailStr
     password: str
+
+
+USUARIOS: List[Usuario] = []
+
+def buscar_usuario_por_email(email: str) -> Optional[Usuario]:
+    for u in USUARIOS:                        
+        if u.email.lower() == email.lower():
+            return u
+    return None
+
+#ABM/CRUD PARA EL REGISTRO DE LOS USUARIOS Y MODIFICACIONES SI ES NECESARIO
+
+class PersonaIn(BaseModel):
+    nombre: str
+    apellido: str
+    dni: int
+    email: EmailStr
+    telefono: str
+    fecha_nacimiento: date
+
+class PersonaOut(PersonaIn):
+    id: int
+    activo: bool = True
+
+PERSONAS: List[PersonaOut] = []
+_next_pid = 1
+
+def _dump(model: BaseModel) -> dict:
+    """Compat: Pydantic v2 (model_dump) / v1 (dict)."""
+    return model.model_dump() if hasattr(model, "model_dump") else model.dict()
+
+#CORROBORA SI EL EMAIL ESTÁ DUPLICADO Y EN CASO DE QUE SI, SI TIRA EL MENSAJE QUE ESTA DUPLICADO
+def crear_persona(data: PersonaIn) -> PersonaOut:
+    global _next_pid
+    if any(p.email.lower() == data.email.lower() for p in PERSONAS):
+        raise ValueError("El email está duplicado")
+    p = PersonaOut(id=_next_pid, **_dump(data))
+    _next_pid += 1
+    PERSONAS.append(p)
+    return p
+
+def obtener_persona(pid: int) -> Optional[PersonaOut]:
+    return next((p for p in PERSONAS if p.id == pid), None)
+
+def listar_personas() -> List[PersonaOut]:
+    return PERSONAS
+
+def modificar_persona(pid: int, data: PersonaIn) -> Optional[PersonaOut]:
+    p = obtener_persona(pid)
+    if not p:
+        return None
+    actualizado = PersonaOut(id=p.id, activo=p.activo, **_dump(data)) #TAMBIEN MANTIENE EL ID AL MODIFICA
+    PERSONAS[PERSONAS.index(p)] = actualizado
+    return actualizado
+
+def eliminar_persona(pid: int) -> bool:
+    p = obtener_persona(pid)
+    if not p:
+        return False
+    PERSONAS.remove(p)
+    return True

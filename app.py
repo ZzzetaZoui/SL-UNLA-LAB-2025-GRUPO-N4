@@ -1,7 +1,11 @@
 from fastapi import FastAPI, status, HTTPException
 from datetime import date, datetime
 from pydantic import BaseModel, EmailStr
-from models import Usuario, Login, USUARIOS, buscar_usuario_por_email, registrar_usuario
+from models import (
+    Usuario, Login, USUARIOS, buscar_usuario_por_email,
+    PersonaIn, PersonaOut, listar_personas, obtener_persona,
+    crear_persona, modificar_persona, eliminar_persona
+)
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
@@ -44,7 +48,45 @@ def login(data: Login):
     
     return {"mensaje": f"Bienvenido {usuario.nombre}"}
 
+#ABM/CRUD EN APP.PY
+@app.get("/personas", response_model=list[PersonaOut])
+def personas_list():
+    return listar_personas()
+
+@app.get("/personas/{pid}", response_model=PersonaOut)
+def personas_get(pid: int):
+    p = obtener_persona(pid)
+    if not p:
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+    return p
+
+@app.post("/personas", status_code=status.HTTP_201_CREATED, response_model=PersonaOut)
+def personas_create(body: PersonaIn):
+    try:
+        return crear_persona(body)
+    except ValueError as e:
+        #AYUDA A SI HAY UN MAIL DUPLICADO
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/personas/{pid}", response_model=PersonaOut)
+def personas_put(pid: int, body: PersonaIn):
+    try:
+        p = modificar_persona(pid, body)
+        if not p:
+            raise HTTPException(status_code=404, detail="Persona no encontrada")
+        return p
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/personas/{pid}", status_code=status.HTTP_204_NO_CONTENT)
+def personas_delete(pid: int):
+    if not eliminar_persona(pid):
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+
+def registrar_usuario(u: Usuario) -> Usuario:
+    if buscar_usuario_por_email(u.email):
+        raise ValueError("El email ya está registrado")
+    USUARIOS.append(u)
+    return u
 
 #Ordene un poco las files y organicé algunas cosas ATTE: Nico
-
-#APARTADO PARA CORROBORAR SI ESTAMOS HABILITADOS PARA OBTENER UN TURNO

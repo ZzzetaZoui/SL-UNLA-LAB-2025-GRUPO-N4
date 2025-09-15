@@ -6,6 +6,18 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+class Persona(Base):
+    __tablename__ = "personas"
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String, nullable=False)
+    apellido = Column(String, nullable=False)
+    dni = Column(Integer, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    telefono = Column(String, nullable=False)
+    fecha_nacimiento = Column(Date, nullable=False)
+    activo = Column(Integer, default=1)  # 1 para activo, 0 para inactivo
+    turnos = relationship("Turno", back_populates="persona")
+
 class Usuario(BaseModel):
     nombre: str
     apellido: str
@@ -53,7 +65,6 @@ class TurnoOut(BaseModel):
     fecha: date
     hora: str
     persona_id: int
-
 TURNOS: List[TurnoIn] = []
 
 

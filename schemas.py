@@ -29,12 +29,11 @@ class PersonaOut(PersonaBase):
     id: int
     activo: bool
 
-# Turnos
 class TurnoIn(BaseModel):
     persona_id: int
     fecha: date
     hora: time
-    estado: str = "confirmado"
+    estado: str = "pendiente"
 
 class TurnoOut(BaseModel):
     fecha: date

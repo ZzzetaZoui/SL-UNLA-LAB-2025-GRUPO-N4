@@ -43,7 +43,7 @@ def personas_create(body: PersonaIn):
         raise HTTPException(status_code=400, detail="Debe ser mayor de 18 años")
     return crear_persona(body)
 
-@app.post("/turnos", response_model=TurnoOut, status_code=201)
+@app.post("/turnos", response_model=TurnoOut, status_code=201) #Wanda modifica esto 
 def crear_turno(turno: TurnoIn):
     for t in TURNOS:
         if t.fecha == turno.fecha and t.hora == turno.hora:
@@ -78,3 +78,30 @@ def turnos_disponibles(fecha: date = Query(...)):
         )
         for h in horarios
     ]
+
+@app.get("/turnos/{tid}", response_model=TurnoOut)
+def obtener_turno(tid: int):
+    if tid < 1 or tid > len(TURNOS):
+        raise HTTPException(status_code=404, detail= "Turno no encontrado")
+    t = TURNOS[tid - 1]
+    return TurnoOut(fecha=t.fecha, hora=t.hora.strftime("%H:%H"), persona_id=t.persona_id)
+
+@app.put("/turnos/{tid}", response_model=TurnoOut)
+def actualizar_turno(tid: int):
+    if tid < 1 or tid > len(TURNOS):
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    
+    if demasiados_cancelados(data.persona_id, data.fecha):
+        raise HTTPException(status_code=400, detail="La persona tiene 5 o mas turnos cancelados en los ultimos 6 meses")
+    
+    TURNOS[tid - 1] = data
+    return TurnoOut(fecha=data.fecha, hora=data.fecha.strftime("%H:%H"), persona_id=data.persona_id) #Esto lo vinculamos con lo que arielingui haga
+
+@app.delete("/turnos/{tid}", response_model=204)
+def eliminar_turno(tid: int):
+    if tid < 1 or tid > len(TURNOS):
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    TURNOS.pop(tid - 1)
+
+
+

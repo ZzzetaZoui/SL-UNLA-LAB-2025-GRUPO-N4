@@ -1,24 +1,16 @@
 from fastapi import FastAPI, status, HTTPException, Query
-from datetime import date, datetime, timedelta, date
+from datetime import date, datetime, timedelta, time
 from pydantic import BaseModel, EmailStr
-from datetime import time
 from models import (
     Usuario, Login, USUARIOS, buscar_usuario_por_email,
     PersonaIn, PersonaOut, listar_personas, obtener_persona,
     crear_persona, modificar_persona, eliminar_persona, TurnoIn,
-    TurnoOut, TURNOS)
+    TurnoOut, TURNOS, estado, PERSONAS)
 from typing import List
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
 app = FastAPI()
-
-#PARA BUSCAR ESTO TENEMOS QUE PONER EL PUERTO+"/equipo" en este caso
-#ESTE ES UN EJEMPLO PARA VERIFICAR QUE SIRVE 
-@app.get("/equipo")
-def equipo():
-    return "Grupo 4"
-
 
 #Incluirá para errores genericos, para poder encapsular si el 400 u otro fallara. atte:ZOE
 #También modifique que los models se trasladen a models.py para mayor organizacion y que
@@ -33,13 +25,11 @@ async def generic_500_handler(request: Request, e: Exception):
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 def register(usuario: Usuario):
-    #verifico si ya existe
     if buscar_usuario_por_email(usuario.email):
         raise HTTPException(status_code=400, detail="El mail ya esta registrado")
     
-    nuevo = Usuario(**usuario.dict()) #Esto despues lo tengo que chequear :P
+    nuevo = Usuario(**usuario.model_dump())
     USUARIOS.append(nuevo)
-
     return {"mensaje": "Usuario registrado con exito"}
 
 @app.post("/login")
@@ -49,6 +39,18 @@ def login(data: Login):
         raise HTTPException(status_code=401, detail="Datos erroneos")
     
     return {"mensaje": f"Bienvenido {usuario.nombre}"}
+
+@app.get("/usuarios")
+def listar_usuarios():
+    return USUARIOS
+
+#si queremos buscar por mail
+@app.get("/usuarios/{email}")
+def obtener_usuario_por_email(email: str):
+    u = buscar_usuario_por_email(email)
+    if not u:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return u
 
 #ABM/CRUD EN APP.PY
 @app.get("/personas", response_model=list[PersonaOut])
@@ -80,10 +82,17 @@ def personas_put(pid: int, body: PersonaIn):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/personas/{pid}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/personas/{pid}", status_code=status.HTTP_200_OK)
 def personas_delete(pid: int):
     if not eliminar_persona(pid):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
+    return {"mensaje": f"Persona con ID {pid} eliminada"}
+
+#SIRVE PARA ELIMINAR LA PERSONA
+@app.delete("/personas", status_code=status.HTTP_200_OK)
+def eliminar_todas_personas():
+    PERSONAS.clear()
+    return {"mensaje": "Todas las personas fueron eliminadas"}
 
 def registrar_usuario(u: Usuario) -> Usuario:
     if buscar_usuario_por_email(u.email):
@@ -104,10 +113,31 @@ def crear_turno(turno: TurnoIn):
         persona_id=turno.persona_id
     )
 
+#PARA LISTAR EL TURNO
+@app.get("/turnos", response_model=List[TurnoOut])
+def listar_turnos():
+    return [
+        TurnoOut(
+            fecha=t.fecha,
+            hora=t.hora.strftime("%H:%M"),
+            persona_id=t.persona_id
+        )
+        for t in TURNOS
+    ]
 
-@app.get("/turnos-disponibles", response_model=List[str])
+# PARA CANCELAR TURNO
+@app.put("/turnos/cancelar")
+def cancelar_turno(fecha: date, hora: str):
+    for t in TURNOS:
+        if t.fecha == fecha and t.hora.strftime("%H:%M") == hora:
+            setattr(t, "estado", "cancelado")
+            return {"mensaje": f"Turno de {hora} en {fecha} cancelado"}
+    raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+
+@app.get("/turnos-disponibles", response_model=List[estado])
 def turnos_disponibles(fecha: date = Query(..., description="Fecha para consultar turnos")):
-    inicio = time(0, 0)
+    inicio = time(9, 0)
     fin = time(17, 0)
     delta = timedelta(minutes=30)
 
@@ -119,7 +149,22 @@ def turnos_disponibles(fecha: date = Query(..., description="Fecha para consulta
         horarios.append(actual.time())
         actual += delta
 
-    ocupados = [t.hora for t in TURNOS if t.fecha == fecha]
-    disponibles = [h.strftime("%H:%M") for h in horarios if h not in ocupados]
+        #AYUDA A LOS ESTADOS DE LOS TURNOS DE ESE DIA
 
-    return disponibles
+    turnos_del_dia = [t for t in TURNOS if t.fecha == fecha]
+
+    cancelados = {t.hora for t in turnos_del_dia
+                  if getattr(t, "estado", None) == "cancelado"}
+
+    ocupados = {t.hora for t in turnos_del_dia
+                if getattr(t, "estado", None) != "cancelado"}
+
+    # SIRVE PARA EL ARMADO DEL JSON SE REFLEJE 
+    return [
+        estado(
+            hora=h.strftime("%H:%M"),
+            # disponible = True si NO está ni ocupado ni cancelado
+            disponible=(h not in ocupados and h not in cancelados)
+        )
+        for h in horarios
+    ]

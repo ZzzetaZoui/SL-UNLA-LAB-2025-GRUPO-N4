@@ -59,7 +59,8 @@ _next_pid = 1
 class TurnoIn(BaseModel):
     persona_id: int
     fecha: date
-    hora: time 
+    hora: time
+    estado: str = "confirmado"   #sirve para que muestre si está cancelado luego
 
 class TurnoOut(BaseModel):
     fecha: date
@@ -113,3 +114,9 @@ def eliminar_persona(pid: int) -> bool:
     PERSONAS.remove(p)
     return True
 
+
+#ESTADO
+class estado(BaseModel):
+    hora: str          
+    disponible: bool   
+    #DISPONIBLE, OCUPADO, CANCELADO

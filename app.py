@@ -43,11 +43,24 @@ def personas_create(body: PersonaIn):
         raise HTTPException(status_code=400, detail="Debe ser mayor de 18 años")
     return crear_persona(body)
 
-@app.post("/turnos", response_model=TurnoOut, status_code=201) #Wanda modifica esto 
+@app.post("/turnos", response_model=TurnoOut, status_code=201)
 def crear_turno(turno: TurnoIn):
+    # Verificar que la persona exista
+    if not obtener_persona(turno.persona_id):
+        raise HTTPException(status_code=404, detail="Persona no encontrada")
+
+    # Regla de 5 cancelados en últimos 6 meses
+    if demasiados_cancelados(turno.persona_id, turno.fecha):
+        raise HTTPException(
+            status_code=400,
+            detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
+        )
+
+    # Evitar choque de horarios
     for t in TURNOS:
-        if t.fecha == turno.fecha and t.hora == turno.hora:
+        if t.fecha == turno.fecha and t.hora == turno.hora and t.estado != "cancelado":
             raise HTTPException(status_code=400, detail="Turno ocupado")
+
     TURNOS.append(turno)
     return TurnoOut(
         fecha=turno.fecha,

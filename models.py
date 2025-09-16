@@ -114,6 +114,12 @@ def eliminar_persona(pid: int) -> bool:
     PERSONAS.remove(p)
     return True
 
+def calcular_edad(fecha_nacimiento: date) -> int:
+    hoy = date.today()
+    edad = hoy.year - fecha_nacimiento.year
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    return edad
 
 #ESTADO
 class estado(BaseModel):

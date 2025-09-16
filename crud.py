@@ -1,83 +1,50 @@
-from fastapi import FastAPI, HTTPException, status, Query
-from datetime import date, datetime, timedelta, time
-from fastapi.responses import JSONResponse
-from starlette.requests import Request
-from typing import List
+from datetime import date
+from typing import List, Optional
+from schemas import PersonaIn, PersonaOut, TurnoIn, TurnoOut
+from pydantic import BaseModel
 
-from schemas import Usuario, Login, PersonaIn, PersonaOut, TurnoIn, TurnoOut, Estado
-from crud import (
-    USUARIOS, buscar_usuario_por_email, crear_persona, listar_personas,
-    obtener_persona, modificar_persona, eliminar_persona,
-    calcular_edad, TURNOS
-)
+USUARIOS: List[BaseModel] = []
+PERSONAS: List[PersonaOut] = []
+TURNOS: List[TurnoIn] = []
+_next_pid = 1
 
-app = FastAPI()
+def buscar_usuario_por_email(email: str) -> Optional[BaseModel]:
+    return next((u for u in USUARIOS if u.email.lower() == email.lower()), None)
 
-@app.exception_handler(Exception)
-async def generic_500_handler(request: Request, e: Exception):
-    return JSONResponse(status_code=500,
-                        content={"detail": "Error interno del servidor",
-                                 "error": str(e)})
+def crear_persona(data: PersonaIn) -> PersonaOut:
+    global _next_pid
+    if any(p.email.lower() == data.email.lower() for p in PERSONAS):
+        raise ValueError("El email está duplicado")
+    p = PersonaOut(id=_next_pid, activo=True, **data.dict())
+    _next_pid += 1
+    PERSONAS.append(p)
+    return p
 
-@app.post("/register", status_code=status.HTTP_201_CREATED)
-def register(usuario: Usuario):
-    if buscar_usuario_por_email(usuario.email):
-        raise HTTPException(status_code=400, detail="El mail ya está registrado")
-    USUARIOS.append(usuario)
-    return {"mensaje": "Usuario registrado con éxito"}
+def obtener_persona(pid: int) -> Optional[PersonaOut]:
+    return next((p for p in PERSONAS if p.id == pid), None)
 
-@app.post("/login")
-def login(data: Login):
-    u = buscar_usuario_por_email(data.email)
-    if not u or u.password != data.password:
-        raise HTTPException(status_code=401, detail="Datos erróneos")
-    return {"mensaje": f"Bienvenido {u.nombre}"}
+def listar_personas() -> List[PersonaOut]:
+    return PERSONAS
 
-@app.get("/personas", response_model=List[PersonaOut])
-def personas_list():
-    return listar_personas()
+def modificar_persona(pid: int, data: PersonaIn) -> Optional[PersonaOut]:
+    p = obtener_persona(pid)
+    if not p:
+        return None
+    actualizado = PersonaOut(id=p.id, activo=p.activo, **data.dict())
+    PERSONAS[PERSONAS.index(p)] = actualizado
+    return actualizado
 
-@app.post("/personas", response_model=PersonaOut, status_code=201)
-def personas_create(body: PersonaIn):
-    if calcular_edad(body.fecha_nacimiento) < 18:
-        raise HTTPException(status_code=400, detail="Debe ser mayor de 18 años")
-    return crear_persona(body)
+def eliminar_persona(pid: int) -> bool:
+    p = obtener_persona(pid)
+    if not p:
+        return False
+    PERSONAS.remove(p)
+    return True
 
-# ...resto de endpoints para modificar/eliminar etc.
-
-# --- Turnos ---
-@app.post("/turnos", response_model=TurnoOut, status_code=201)
-def crear_turno(turno: TurnoIn):
-    for t in TURNOS:
-        if t.fecha == turno.fecha and t.hora == turno.hora:
-            raise HTTPException(status_code=400, detail="Turno ocupado")
-    TURNOS.append(turno)
-    return TurnoOut(
-        fecha=turno.fecha,
-        hora=turno.hora.strftime("%H:%M"),
-        persona_id=turno.persona_id
-    )
-
-@app.get("/turnos-disponibles", response_model=List[Estado])
-def turnos_disponibles(fecha: date = Query(...)):
-    inicio, fin = time(9, 0), time(17, 0)
-    delta = timedelta(minutes=30)
-    actual = datetime.combine(fecha, inicio)
-    fin_dt = datetime.combine(fecha, fin)
-
-    horarios = []
-    while actual <= fin_dt:
-        horarios.append(actual.time())
-        actual += delta
-
-    turnos_dia = [t for t in TURNOS if t.fecha == fecha]
-    cancelados = {t.hora for t in turnos_dia if getattr(t, "estado", "") == "cancelado"}
-    ocupados = {t.hora for t in turnos_dia if getattr(t, "estado", "") != "cancelado"}
-
-    return [
-        Estado(
-            hora=h.strftime("%H:%M"),
-            disponible=(h not in ocupados and h not in cancelados)
-        )
-        for h in horarios
-    ]
+def calcular_edad(fecha_nacimiento: date) -> int:
+    from datetime import date as d
+    hoy = d.today()
+    edad = hoy.year - fecha_nacimiento.year
+    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
+        edad -= 1
+    return edad

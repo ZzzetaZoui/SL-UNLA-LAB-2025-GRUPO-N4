@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from models import (
     Usuario, Login, USUARIOS, buscar_usuario_por_email,
     PersonaIn, PersonaOut, listar_personas, obtener_persona,
-    crear_persona, modificar_persona, eliminar_persona, TurnoIn,
+    crear_persona, modificar_persona, eliminar_persona, calcular_edad, TurnoIn,
     TurnoOut, TURNOS, estado, PERSONAS)
 from typing import List
 from fastapi.responses import JSONResponse
@@ -158,6 +158,14 @@ def turnos_disponibles(fecha: date = Query(..., description="Fecha para consulta
 
     ocupados = {t.hora for t in turnos_del_dia
                 if getattr(t, "estado", None) != "cancelado"}
+    
+    @app.get("/personas/{pid}/edad")
+    def edad_persona(pid: int):
+        p = obtener_persona(pid)
+        if not p:
+            raise HTTPException(status_code=404, detail="Persona no encontrada")
+        return {"edad": calcular_edad(p.fecha_nacimiento)}
+    
 
     # SIRVE PARA EL ARMADO DEL JSON SE REFLEJE 
     return [

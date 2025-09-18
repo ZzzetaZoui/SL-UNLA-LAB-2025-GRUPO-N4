@@ -48,3 +48,13 @@ def calcular_edad(fecha_nacimiento: date) -> int:
     if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
         edad -= 1
     return edad
+
+def demasiados_cancelados(persona_id: int, referencia: date) -> bool:
+    hace_6_meses = referencia - timedelta(days=180)
+    cancelados = [
+        t for t in TURNOS
+        if t.persona_id == persona_id
+        and getattr(t, "estado", "") == "cancelado"
+        and hace_6_meses <= t.fecha <= referencia
+    ]
+    return len(cancelados) >= 5

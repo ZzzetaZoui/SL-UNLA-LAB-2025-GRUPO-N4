@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 from schemas import PersonaIn, PersonaOut, TurnoIn, TurnoOut
 from pydantic import BaseModel

@@ -3,6 +3,11 @@ from datetime import date, datetime, timedelta, time
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 from typing import List
+from crud import (
+    USUARIOS, buscar_usuario_por_email, crear_persona, listar_personas,
+    obtener_persona, modificar_persona, eliminar_persona,
+    calcular_edad, TURNOS, demasiados_cancelados  
+)
 
 from schemas import Usuario, Login, PersonaIn, PersonaOut, TurnoIn, TurnoOut, Estado
 from crud import (
@@ -45,18 +50,15 @@ def personas_create(body: PersonaIn):
 
 @app.post("/turnos", response_model=TurnoOut, status_code=201)
 def crear_turno(turno: TurnoIn):
-    # Verificar que la persona exista
     if not obtener_persona(turno.persona_id):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-    # Regla de 5 cancelados en últimos 6 meses
     if demasiados_cancelados(turno.persona_id, turno.fecha):
         raise HTTPException(
             status_code=400,
             detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
         )
 
-    # Evitar choque de horarios
     for t in TURNOS:
         if t.fecha == turno.fecha and t.hora == turno.hora and t.estado != "cancelado":
             raise HTTPException(status_code=400, detail="Turno ocupado")
@@ -97,10 +99,10 @@ def obtener_turno(tid: int):
     if tid < 1 or tid > len(TURNOS):
         raise HTTPException(status_code=404, detail= "Turno no encontrado")
     t = TURNOS[tid - 1]
-    return TurnoOut(fecha=t.fecha, hora=t.hora.strftime("%H:%H"), persona_id=t.persona_id)
+    return TurnoOut(fecha=t.fecha, hora=t.hora.strftime("%H:%M"), persona_id=t.persona_id)
 
 @app.put("/turnos/{tid}", response_model=TurnoOut)
-def actualizar_turno(tid: int):
+def actualizar_turno(tid: int, data: TurnoIn):
     if tid < 1 or tid > len(TURNOS):
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     
@@ -108,9 +110,9 @@ def actualizar_turno(tid: int):
         raise HTTPException(status_code=400, detail="La persona tiene 5 o mas turnos cancelados en los ultimos 6 meses")
     
     TURNOS[tid - 1] = data
-    return TurnoOut(fecha=data.fecha, hora=data.fecha.strftime("%H:%H"), persona_id=data.persona_id) #Esto lo vinculamos con lo que arielingui haga
+    return TurnoOut(fecha=data.fecha, hora=data.hora.strftime("%H:%M"), persona_id=data.persona_id)  
 
-@app.delete("/turnos/{tid}", response_model=204)
+@app.delete("/turnos/{tid}", status_code=204)  
 def eliminar_turno(tid: int):
     if tid < 1 or tid > len(TURNOS):
         raise HTTPException(status_code=404, detail="Turno no encontrado")

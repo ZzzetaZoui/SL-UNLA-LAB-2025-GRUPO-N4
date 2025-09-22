@@ -10,7 +10,7 @@ app = FastAPI()
 
 @app.exception_handler(Exception)
 async def generic_500_handler(request: Request, e: Exception):
-    return JSONResponse( status_code=500, content={"detail": "Error interno del servidor", "error": str(e)})
+    return JSONResponse(status_code=500, content={"detail": "Error interno del servidor", "error": str(e)})
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 def register(usuario: Usuario):
@@ -59,7 +59,7 @@ def personas_delete(pid: int):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
     PERSONAS.remove(p)
 
-_next_tid = 1  
+_next_tid = 1
 
 @app.post("/turnos", response_model=TurnoOut, status_code=201)
 def crear_turno(turno: TurnoIn):
@@ -71,26 +71,27 @@ def crear_turno(turno: TurnoIn):
     if not persona.activo:
         raise HTTPException(status_code=400, detail="La persona no está habilitada para sacar turno")
 
+    # Validaciones de horario
     if not (time(9, 0) <= turno.hora <= time(17, 0)):
         raise HTTPException(status_code=400, detail="Hora fuera de rango permitido (09:00-17:00)")
     if turno.hora.minute not in [0, 30]:
         raise HTTPException(status_code=400, detail="La hora debe ser múltiplo de 30 minutos")
 
     if demasiados_cancelados(turno.persona_id, turno.fecha):
-        raise HTTPException(
-            status_code=400,
-            detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses"
-        )
-    
-    for t in TURNOS:
-        if t.fecha == turno.fecha and t.hora == turno.hora and t.estado != EstadoTurno.cancelado:
-            raise HTTPException(status_code=400, detail="Turno ocupado")
+        raise HTTPException(status_code=400, detail="La persona tiene 5 o más turnos cancelados en los últimos 6 meses")
 
+    # 🔧 Normalizar hora a string para comparar/guardar siempre igual
+    hora_str = turno.hora.strftime("%H:%M")
+
+    # Evitar doble booking (comparar contra strings)
+    for t in TURNOS:
+        if t.fecha == turno.fecha and t.hora == hora_str and t.estado != EstadoTurno.cancelado:
+            raise HTTPException(status_code=400, detail="Turno ocupado")
 
     nuevo_turno = TurnoOut(
         id=_next_tid,
         fecha=turno.fecha,
-        hora=turno.hora.strftime("%H:%M"),
+        hora=hora_str,  # guardamos string "HH:MM"
         persona_id=turno.persona_id,
         estado=turno.estado
     )
@@ -124,8 +125,16 @@ def actualizar_turno(tid: int, data: TurnoIn):
     if demasiados_cancelados(data.persona_id, data.fecha):
         raise HTTPException(status_code=400, detail="La persona tiene 5 o más turnos cancelados")
 
+    # 🔧 Normalizar hora a string
+    nueva_hora = data.hora.strftime("%H:%M")
+
+    # Evitar colisión con otro turno distinto
+    for otro in TURNOS:
+        if otro.id != tid and otro.fecha == data.fecha and otro.hora == nueva_hora and otro.estado != EstadoTurno.cancelado:
+            raise HTTPException(status_code=400, detail="Ya existe un turno en esa fecha y hora")
+
     t.fecha = data.fecha
-    t.hora = data.hora.strftime("%H:%M")
+    t.hora = nueva_hora
     t.persona_id = data.persona_id
     t.estado = data.estado
     return t
@@ -144,18 +153,20 @@ def turnos_disponibles(fecha: date = Query(...)):
     actual = datetime.combine(fecha, inicio)
     fin_dt = datetime.combine(fecha, fin)
 
-    horarios = []
+    # 🔧 Generar horarios como STR "HH:MM"
+    horarios: List[str] = []
     while actual <= fin_dt:
-        horarios.append(actual.time())
+        horarios.append(actual.strftime("%H:%M"))
         actual += delta
 
+    # Filtrar turnos del día (t.hora ya es string)
     turnos_dia = [t for t in TURNOS if t.fecha == fecha]
     cancelados = {t.hora for t in turnos_dia if t.estado == EstadoTurno.cancelado}
-    ocupados = {t.hora for t in turnos_dia if t.estado != EstadoTurno.cancelado}
+    ocupados   = {t.hora for t in turnos_dia if t.estado != EstadoTurno.cancelado}
 
     return [
         Estado(
-            hora=h.strftime("%H:%M"),
+            hora=h,
             disponible=(h not in ocupados and h not in cancelados)
         )
         for h in horarios

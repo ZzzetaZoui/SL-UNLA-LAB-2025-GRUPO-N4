@@ -1,6 +1,14 @@
 from datetime import date, time
 from typing import Optional
 from pydantic import BaseModel, EmailStr
+from enum import Enum  # ← NUEVO
+
+# === Enum para el estado del turno ===
+class EstadoTurno(str, Enum):
+    pendiente  = "pendiente"
+    cancelado  = "cancelado"
+    confirmado = "confirmado"
+    asistido   = "asistido"
 
 class Usuario(BaseModel):
     nombre: str
@@ -33,14 +41,14 @@ class TurnoIn(BaseModel):
     persona_id: int
     fecha: date
     hora: time
-    estado: str = "pendiente"
+    estado: EstadoTurno = EstadoTurno.pendiente   # ← tipado con enum
 
 class TurnoOut(BaseModel):
     fecha: date
     hora: str
     persona_id: int
+    estado: EstadoTurno                          # ← incluir estado si lo usás en respuestas
 
 class Estado(BaseModel):
     hora: str
     disponible: bool
-

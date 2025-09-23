@@ -1,60 +1,21 @@
-from datetime import date, timedelta
-from typing import List, Optional
-from schemas import PersonaIn, PersonaOut, TurnoIn, TurnoOut
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from . import models, schemas
 
-USUARIOS: List[BaseModel] = []
-PERSONAS: List[PersonaOut] = []
-TURNOS: List[TurnoIn] = []
-_next_pid = 1
+def crear_persona(db: Session, persona: schemas.PersonaCreate):
+    db_persona = models.Persona(**persona.dict())
+    db.add(db_persona)
+    db.commit()
+    db.refresh(db_persona)
+    return db_persona
 
-def buscar_usuario_por_email(email: str) -> Optional[BaseModel]:
-    return next((u for u in USUARIOS if u.email.lower() == email.lower()), None)
+def listar_personas(db: Session):
+    return db.query(models.Persona).all()
 
-def crear_persona(data: PersonaIn) -> PersonaOut:
-    global _next_pid
-    if any(p.email.lower() == data.email.lower() for p in PERSONAS):
-        raise ValueError("El email está duplicado")
-    p = PersonaOut(id=_next_pid, activo=True, **data.dict())
-    _next_pid += 1
-    PERSONAS.append(p)
-    return p
+def obtener_persona(db: Session, persona_id: int):
+    return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
 
-def obtener_persona(pid: int) -> Optional[PersonaOut]:
-    return next((p for p in PERSONAS if p.id == pid), None)
-
-def listar_personas() -> List[PersonaOut]:
-    return PERSONAS
-
-def modificar_persona(pid: int, data: PersonaIn) -> Optional[PersonaOut]:
-    p = obtener_persona(pid)
-    if not p:
-        return None
-    actualizado = PersonaOut(id=p.id, activo=p.activo, **data.dict())
-    PERSONAS[PERSONAS.index(p)] = actualizado
-    return actualizado
-
-def eliminar_persona(pid: int) -> bool:
-    p = obtener_persona(pid)
-    if not p:
-        return False
-    PERSONAS.remove(p)
-    return True
-
-def calcular_edad(fecha_nacimiento: date) -> int:
-    from datetime import date as d
-    hoy = d.today()
-    edad = hoy.year - fecha_nacimiento.year
-    if (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day):
-        edad -= 1
-    return edad
-
-def demasiados_cancelados(persona_id: int, referencia: date) -> bool:
-    hace_6_meses = referencia - timedelta(days=180)
-    cancelados = [
-        t for t in TURNOS
-        if t.persona_id == persona_id
-        and getattr(t, "estado", "") == "cancelado"
-        and hace_6_meses <= t.fecha <= referencia
-    ]
-    return len(cancelados) >= 5
+def eliminar_persona(db: Session, persona_id: int):
+    p = obtener_persona(db, persona_id)
+    if p:
+        db.delete(p)
+        db.commit()

@@ -19,3 +19,12 @@ def eliminar_persona(db: Session, persona_id: int):
     if p:
         db.delete(p)
         db.commit()
+
+def actualizar_persona(db: Session, persona_id: int, persona_data: schemas.PersonaCreate):
+    p = obtener_persona(db, persona_id)
+    if p:
+        for key, value in persona_data.dict().items():
+            setattr(p, key, value)
+        db.commit()
+        db.refresh(p)
+    return p

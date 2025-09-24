@@ -1,5 +1,6 @@
 # Proyecto_Python
 Grupo 4 - Seminario de Lenguajes (Opción Python)
+Link video: https://www.youtube.com/watch?v=WN7wm3jfW0A
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

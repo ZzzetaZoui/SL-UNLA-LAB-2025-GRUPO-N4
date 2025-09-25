@@ -10,6 +10,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+@app.get("/")
+def read_root():
+    return {"mensaje": "API funcionando. Usa /docs para probar la API."}
+
+
 def calcular_edad(fecha_nacimiento: date) -> int:
     today = date.today()
     age = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))

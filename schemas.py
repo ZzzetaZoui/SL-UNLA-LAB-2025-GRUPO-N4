@@ -1,6 +1,6 @@
 from datetime import date, time
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from typing import List
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 class PersonaBase(BaseModel):
     nombre: str
@@ -16,8 +16,7 @@ class PersonaCreate(PersonaBase):
 
 class PersonaOut(PersonaBase):
     id: int
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TurnoBase(BaseModel):
     fecha: date
@@ -30,5 +29,4 @@ class TurnoCreate(TurnoBase):
 
 class TurnoOut(TurnoBase):
     id: int
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, status, Query, Depends
 from datetime import date, time, datetime, timedelta
 from typing import List
 from sqlalchemy.orm import Session
-from . import schemas, crud
-from .database import engine, get_db
-from .models import Base
+import schemas, crud
+from database import engine, get_db
+from models import Base
 
 Base.metadata.create_all(bind=engine)
 

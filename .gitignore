@@ -1,0 +1,17 @@
+# Entorno virtual Python
+.venv/
+
+# Carpetas de caché de Python y archivos compilados
+__pycache__/
+*.pyc
+
+# Base de datos SQLite
+*.db
+
+# Archivos temporales y de configuración local
+desktop.ini
+*.log
+*.tmp
+
+# Configuración de VSCode
+.vscode/

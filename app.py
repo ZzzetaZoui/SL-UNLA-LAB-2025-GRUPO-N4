@@ -51,3 +51,5 @@ def personas_delete(persona_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
     crud.eliminar_persona(db, persona_id)
     return
+
+

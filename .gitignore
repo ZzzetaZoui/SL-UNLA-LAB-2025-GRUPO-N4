@@ -1,17 +1,56 @@
-# Entorno virtual Python
-.venv/
-
-# Carpetas de caché de Python y archivos compilados
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-# Base de datos SQLite
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# VS Code settings
+.vscode/
+
+# Environment variables
+*.env
+*.env.*
+
+# Logs and local databases
+*.log
+*.sqlite3
 *.db
 
-# Archivos temporales y de configuración local
-desktop.ini
-*.log
-*.tmp
+# OS-specific files
+.DS_Store
+Thumbs.db
 
-# Configuración de VSCode
-.vscode/
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Dependency files
+pip-wheel-metadata/
+__pypackages__/
+
+# Ignore node_modules if using frontend tools
+node_modules/
+
+# Ignore compiled files from other languages (just in case)
+*.class
+*.jar
+*.swp
+
+# Ignore test coverage reports
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+
+# Ignore Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Ignore migrations if using Django or similar
+migrations/

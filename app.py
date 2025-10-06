@@ -14,7 +14,6 @@ app = FastAPI()
 def read_root():
     return {"mensaje": "API funcionando. Usa /docs para probar la API."}
 
-
 def calcular_edad(fecha_nacimiento: date) -> int:
     today = date.today()
     age = today.year - fecha_nacimiento.year - ((today.month, today.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
@@ -52,4 +51,32 @@ def personas_delete(persona_id: int, db: Session = Depends(get_db)):
     crud.eliminar_persona(db, persona_id)
     return
 
+@app.post("/turnos", response_model=schemas.TurnoOut, status_code=status.HTTP_201_CREATED)
+def turnos_create(body: schemas.TurnoCreate, db: Session = Depends(get_db)):
+    return crud.crear_turno(db, body)
 
+@app.get("/turnos", response_model=List[schemas.TurnoOut])
+def turnos_list(db: Session = Depends(get_db)):
+    return crud.listar_turnos(db)
+
+@app.get("/turnos/{turno_id}", response_model=schemas.TurnoOut)
+def turnos_get(turno_id: int, db: Session = Depends(get_db)):
+    t = crud.obtener_turno(db, turno_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    return t
+
+@app.put("/turnos/{turno_id}", response_model=schemas.TurnoOut)
+def turnos_update(turno_id: int, body: schemas.TurnoCreate, db: Session = Depends(get_db)):
+    t = crud.actualizar_turno(db, turno_id, body)
+    if not t:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    return t
+
+@app.delete("/turnos/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
+def turnos_delete(turno_id: int, db: Session = Depends(get_db)):
+    t = crud.obtener_turno(db, turno_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    crud.eliminar_turno(db, turno_id)
+    return None

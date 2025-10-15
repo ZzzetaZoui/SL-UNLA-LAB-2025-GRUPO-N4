@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Date, Time, Enum, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
+from datetime import date, time
+
 
 class Persona(Base):
     __tablename__ = "personas"
@@ -28,3 +30,11 @@ class Turno(Base):
     )
     persona_id = Column(Integer, ForeignKey("personas.id"))
     persona = relationship("Persona", back_populates="turnos")
+
+
+class ReprogramarTurnoIn(Base):
+    fecha: date
+    hora: time
+
+class CambiarEstadoTurnoIn(Base):
+    estado: str  # "pendiente" | "cancelado" | "confirmado" | "asistido"

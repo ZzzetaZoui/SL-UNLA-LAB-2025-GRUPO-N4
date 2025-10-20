@@ -33,6 +33,15 @@ def actualizar_persona(db: Session, persona_id: int, persona_data: schemas.Perso
         db.refresh(p)
     return p
 
+def eliminar_persona(db: Session, persona_id: int) -> bool:
+    p = obtener_persona(db, persona_id)
+    if p:
+        db.delete(p)
+        db.commit()
+        return True   # Devuelve True si borró algo
+    return False      # Devuelve False si no existía
+
+
 # ---------------> Turnos <------------
 
 def crear_turno(db: Session, turno: schemas.TurnoCreate):
@@ -63,11 +72,19 @@ def actualizar_turno(db: Session, turno_id: int, turno_data: schemas.TurnoCreate
         db.refresh(t)
     return t
 
-def eliminar_turno(db: Session, turno_id: int):
+#def eliminar_turno(db: Session, turno_id: int):
+  #  t = obtener_turno(db, turno_id)
+  #  if t:
+ #       db.delete(t)
+ #       db.commit()
+def eliminar_turno(db: Session, turno_id: int) -> bool:
     t = obtener_turno(db, turno_id)
     if t:
         db.delete(t)
         db.commit()
+        return True
+    return False
+
 
 def buscar_turnos(
     db: Session,

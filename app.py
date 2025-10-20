@@ -62,6 +62,17 @@ def personas_delete(persona_id: int, db: Session = Depends(get_db)):
 def persona_turnos(persona_id: int, db: Session = Depends(get_db)):
     return crud.buscar_turnos(db, persona_id=persona_id)
 
+# ===== ENDPOINT 1: Buscador de turnos (filtros combinables) =====
+@app.get("/turnos/buscar", response_model=List[schemas.TurnoOut])
+def buscar_turnos(
+    persona_id: Optional[int] = Query(None),
+    fecha_desde: Optional[date] = Query(None),
+    fecha_hasta: Optional[date] = Query(None),
+    estado: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    return crud.buscar_turnos(db, persona_id=persona_id, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, estado=estado)
+
 # ========================== TURNOS ======================
 @app.post("/turnos", response_model=schemas.TurnoOut, status_code=status.HTTP_201_CREATED)
 def turnos_create(body: schemas.TurnoCreate, db: Session = Depends(get_db)):
@@ -93,17 +104,8 @@ def turnos_delete(turno_id: int, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return
+  
 
-# ===== ENDPOINT 1: Buscador de turnos (filtros combinables) =====
-@app.get("/turnos/buscar", response_model=List[schemas.TurnoOut])
-def buscar_turnos(
-    persona_id: Optional[int] = Query(None),
-    fecha_desde: Optional[date] = Query(None),
-    fecha_hasta: Optional[date] = Query(None),
-    estado: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    return crud.buscar_turnos(db, persona_id=persona_id, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, estado=estado)
 
 # ===== ENDPOINT 3: Reprogramar turno (fecha/hora) con control de conflictos =====
 @app.patch("/turnos/{turno_id}/reprogramar", response_model=schemas.TurnoOut)

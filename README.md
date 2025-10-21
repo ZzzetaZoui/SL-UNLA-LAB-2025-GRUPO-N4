@@ -36,4 +36,10 @@ El desarrollo utiliza las siguientes tecnologías según la consigna del TP:
 Banfi, Zoe: https://github.com/ZzzetaZoui
 Cerciosimo, Nicolás: https://github.com/NicoCercio12
 Contreras, Ariel: https://github.com/ArielCont
-Palladino, Wanda: https://github.com/palladinowanda 
+Palladino, Wanda: https://github.com/palladinowanda
+
+# Videos del desarrollo del trabajo práctico:
+
+Entrega 1: https://www.youtube.com/watch?v=WN7wm3jfW0A
+Entrega 2: https://www.youtube.com/watch?v=YLrz4FDz2hw
+

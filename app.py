@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException, status, Query, Depends
-from datetime import date, time, timedelta, datetime
+from datetime import date, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from database import engine, get_db
 from models import Base
 import schemas
 import crud
-import reportes  # <-- Importamos las rutas de reportes
+import reportes  # <-- Rutas de reportes
 from fastapi.middleware.cors import CORSMiddleware
 
 # Crear tablas
@@ -14,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API de Turnos", version="1.0")
 
-# CORS (opcional)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -100,24 +100,30 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Turno no encontrado")
     return
 
-# ===================== FUNCIONES ESPECIALES ==============
+# ===================== GESTIÓN DE ESTADO (Punto D) =====================
+
+@app.put("/turnos/{turno_id}/cancelar", response_model=schemas.TurnoOut)
+def cancelar_turno(turno_id: int, db: Session = Depends(get_db)):
+    turno = crud.obtener_turno(db, turno_id)
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    if turno.estado in ["cancelado", "asistido"]:
+        raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
+    return crud.cambiar_estado_turno(db, turno_id, "cancelado")
+
+@app.put("/turnos/{turno_id}/confirmar", response_model=schemas.TurnoOut)
+def confirmar_turno(turno_id: int, db: Session = Depends(get_db)):
+    turno = crud.obtener_turno(db, turno_id)
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    if turno.estado in ["cancelado", "asistido"]:
+        raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
+    return crud.cambiar_estado_turno(db, turno_id, "confirmado")
+
+# ===================== TURNOS DISPONIBLES =========================
 @app.get("/turnos-disponibles", response_model=List[schemas.SlotDisponible])
 def turnos_disponibles(fecha: date = Query(...), db: Session = Depends(get_db)):
     return crud.obtener_turnos_disponibles(db, fecha)
-
-@app.patch("/turnos/{turno_id}/reprogramar", response_model=schemas.TurnoOut)
-def reprogramar(turno_id: int, body: schemas.ReprogramarTurnoIn, db: Session = Depends(get_db)):
-    t = crud.reprogramar_turno(db, turno_id, body.fecha, body.hora)
-    if not t:
-        raise HTTPException(status_code=404, detail="Turno no encontrado o conflicto")
-    return t
-
-@app.patch("/turnos/{turno_id}/estado", response_model=schemas.TurnoOut)
-def cambiar_estado(turno_id: int, body: schemas.CambiarEstadoTurnoIn, db: Session = Depends(get_db)):
-    t = crud.cambiar_estado_turno(db, turno_id, body.estado)
-    if not t:
-        raise HTTPException(status_code=404, detail="Turno no encontrado")
-    return t
 
 # ===================== DASHBOARD ========================
 @app.get("/turnos/proximos", response_model=List[schemas.TurnoOut])

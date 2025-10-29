@@ -1,10 +1,7 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from typing import Optional, List
 from datetime import date, time, datetime, timedelta
-# Importamos joinedload para poder cargar
-# los datos de la persona en los turnos
-from sqlalchemy.orm import joinedload 
 
 # --------------> Personas <------------
 
@@ -18,11 +15,11 @@ def crear_persona(db: Session, persona: schemas.PersonaCreate):
 def listar_personas(db: Session):
     return db.query(models.Persona).all()
 
-def obtener_persona(db: Session, persona_id: int):
-    return db.query(models.Persona).filter(models.Persona.id == persona_id).first()
+def obtener_persona(db: Session, dni: int):
+    return db.query(models.Persona).filter(models.Persona.dni == dni).first()
 
-def actualizar_persona(db: Session, persona_id: int, persona_data: schemas.PersonaCreate):
-    p = obtener_persona(db, persona_id)
+def actualizar_persona(db: Session, dni: int, persona_data: schemas.PersonaCreate):
+    p = obtener_persona(db, dni)
     if p:
         for key, value in persona_data.dict().items():
             setattr(p, key, value)
@@ -30,8 +27,8 @@ def actualizar_persona(db: Session, persona_id: int, persona_data: schemas.Perso
         db.refresh(p)
     return p
 
-def eliminar_persona(db: Session, persona_id: int) -> bool:
-    p = obtener_persona(db, persona_id)
+def eliminar_persona(db: Session, dni: int) -> bool:
+    p = obtener_persona(db, dni)
     if p:
         db.delete(p)
         db.commit()
@@ -93,7 +90,7 @@ def eliminar_turno(db: Session, turno_id: int) -> bool:
 # === ÚNICA MODIFICACIÓN: Añadimos skip y limit para paginación (Reporte 5) ===
 def buscar_turnos(
     db: Session,
-    persona_id: Optional[int] = None,
+    dni: Optional[int] = None,
     fecha_desde: Optional[date] = None,
     fecha_hasta: Optional[date] = None,
     estado: Optional[str] = None,
@@ -105,8 +102,8 @@ def buscar_turnos(
     # para que esté disponible en los reportes
     q = db.query(models.Turno).options(joinedload(models.Turno.persona))
 
-    if persona_id is not None:
-        q = q.filter(models.Turno.persona_id == persona_id)
+    if dni is not None:
+        q = q.filter(models.Turno.dni == dni)
     if estado is not None:
         q = q.filter(models.Turno.estado == estado)
     if fecha_desde is not None:
@@ -127,7 +124,7 @@ def buscar_turnos(
 
 def existe_conflicto_turno(
     db: Session,
-    persona_id: int,
+    dni: int,
     fecha: date,
     hora: time,
     excluir_turno_id: Optional[int] = None
@@ -135,7 +132,7 @@ def existe_conflicto_turno(
     q = (
         db.query(models.Turno)
           .filter(
-              models.Turno.persona_id == persona_id,
+              models.Turno.dni == dni,
               models.Turno.fecha == fecha,
               models.Turno.hora == hora,
               models.Turno.estado != "cancelado" # Los cancelados no dan conflicto
@@ -156,3 +153,13 @@ def reprogramar_turno(db: Session, turno_id: int, nueva_fecha: date, nueva_hora:
     db.refresh(t)
     return t
 
+def obtener_turnos_disponibles(db: Session, fecha: date):
+   inicio, fin = time(9, 0), time(17, 0)
+   intervalo = timedelta(minutes=30)
+   ocupados = {t.hora for t in buscar_turnos(db, fecha_desde=fecha, fecha_hasta=fecha) if t.estado != "cancelado"}
+   slots, actual = [], datetime.combine(fecha, inicio)
+   while actual.time() < fin:
+      hora = actual.time()
+      slots.append(schemas.SlotDisponible(hora=hora, estado="ocupado" if hora in ocupados else "disponible"))
+      actual += intervalo
+   return slots 

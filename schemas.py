@@ -1,94 +1,74 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date, time
-from typing import Optional, Literal, List
+from typing import List, Optional
 
-# --- Tipos Personalizados ---
-
-# Definimos los estados válidos para un turno, basados en tu models.py
-EstadoTurno = Literal["pendiente", "cancelado", "confirmado", "asistido"]
-
-
-# =========================
-# === SCHEMAS PERSONA ===
-# =========================
-
-# Campos base de una Persona
+# ---- Persona ----
 class PersonaBase(BaseModel):
     nombre: str
     apellido: str
-    dni: int
     email: EmailStr
+    dni: int
     telefono: str
     fecha_nacimiento: date
 
-# Schema para la CREACIÓN (POST /personas)
 class PersonaCreate(PersonaBase):
-    pass  # Hereda todos los campos base
+    pass
 
-# Schema para la RESPUESTA (GET /personas/1)
 class PersonaOut(PersonaBase):
     id: int
-    activo: bool
-
-    class Config:
-        # Permite que Pydantic lea los datos desde el modelo de SQLAlchemy
-        orm_mode = True # Para Pydantic v1 (como indica crud.py)
-
-
-# =========================
-# === SCHEMAS TURNO ===
-# =========================
-
-# Campos base de un Turno
-class TurnoBase(BaseModel):
-    fecha: date
-    hora: time
-    persona_id: int
-
-# Schema para la CREACIÓN (POST /turnos)
-class TurnoCreate(TurnoBase):
-    # El estado tiene un default "pendiente" en el modelo
-    # Lo hacemos opcional para que al crear/actualizar no sea obligatorio enviarlo
-    estado: Optional[EstadoTurno] = "pendiente"
-
-# Schema para la RESPUESTA (GET /turnos/1)
-class TurnoOut(TurnoBase):
-    id: int
-    estado: EstadoTurno
+    activo: Optional[bool] = True
+    edad: Optional[int] = None
 
     class Config:
         orm_mode = True
 
+# ---- Turno ----
+class TurnoBase(BaseModel):
+    fecha: date
+    hora: time
+    estado: Optional[str] = "pendiente"
 
+class TurnoCreate(TurnoBase):
+    persona_id: int
+
+class TurnoOut(TurnoBase):
+    id: int
+    persona: PersonaOut
+
+    class Config:
+        orm_mode = True
+
+# ---- Slot disponible (para /turnos-disponibles) ----
 class SlotDisponible(BaseModel):
     hora: time
-    estado: str  # Será "disponible" u "ocupado"
+    estado: str  # "disponible" o "ocupado"
 
-# =========================
-# === SCHEMAS ESPECIALES ===
-# =========================
+    class Config:
+        orm_mode = True
 
-# Schema para el ENDPOINT 3 (Reprogramar)
+# ---- Inputs especiales ----
 class ReprogramarTurnoIn(BaseModel):
     fecha: date
     hora: time
 
-# Schema para el EXTRA (Cambiar Estado)
 class CambiarEstadoTurnoIn(BaseModel):
-    estado: EstadoTurno
+    estado: str  # "pendiente"|"cancelado"|"confirmado"|"asistido"
 
-"""""
-#--------------REPORTES OBLIGATORIOS---------------
-
-# Schema para Reporte 2: /reportes/turnos-cancelados-por-mes
+# ---- Reportes ----
 class ReporteCanceladosMes(BaseModel):
     anio: int
     mes: str
     cantidad: int
-    turnos: List[TurnoOut] # Lista de los turnos cancelados
+    turnos: List[TurnoOut]
 
-# Schema para Reporte 4: /reportes/turnos-cancelados?min=5
+    class Config:
+        orm_mode = True
+
+# Para el endpoint de personas con >= min cancelados:
 class ReportePersonaCancelados(BaseModel):
     persona: PersonaOut
     total_cancelados: int
-"""
+    turnos: List[TurnoOut]
+
+    class Config:
+        orm_mode = True

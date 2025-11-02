@@ -131,12 +131,13 @@ def existe_conflicto_turno(
 ) -> bool:
     q = (
         db.query(models.Turno)
-          .filter(
-              models.Turno.dni == dni,
-              models.Turno.fecha == fecha,
-              models.Turno.hora == hora,
-              models.Turno.estado != "cancelado" # Los cancelados no dan conflicto
-          )
+        .join(models.Persona)
+        .filter(
+            models.Persona.dni == dni,
+            models.Turno.fecha == fecha,
+            models.Turno.hora == hora,
+            models.Turno.estado != "cancelado"
+        )
     )
     if excluir_turno_id is not None:
         q = q.filter(models.Turno.id != excluir_turno_id)

@@ -7,6 +7,8 @@ from models import Base
 import schemas
 import crud
 import reportes  # <-- Rutas de reportes
+import reportes_pdf # <-- exportaciones (nuevoo)
+
 from fastapi.middleware.cors import CORSMiddleware
 
 # Crear tablas
@@ -68,6 +70,16 @@ def eliminar_persona(dni: int, db: Session = Depends(get_db)):
 @app.get("/personas/{dni}/turnos", response_model=List[schemas.TurnoOut])
 def turnos_de_persona(dni: int, db: Session = Depends(get_db)):
     return crud.buscar_turnos(db, dni=dni)
+# ===================== DASHBOARD ========================
+@app.get("/turnos/proximos", response_model=List[schemas.TurnoOut])
+def proximos_turnos(
+    dias: int = Query(1, ge=1, le=30),
+    estado: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    fecha_hoy = date.today()
+    fecha_fin = fecha_hoy + timedelta(days=dias - 1)
+    return crud.buscar_turnos(db, fecha_desde=fecha_hoy, fecha_hasta=fecha_fin, estado=estado)
 
 # ========================= TURNOS =======================
 @app.post("/turnos", response_model=schemas.TurnoOut, status_code=status.HTTP_201_CREATED)
@@ -125,16 +137,6 @@ def confirmar_turno(turno_id: int, db: Session = Depends(get_db)):
 def turnos_disponibles(fecha: date = Query(...), db: Session = Depends(get_db)):
     return crud.obtener_turnos_disponibles(db, fecha)
 
-# ===================== DASHBOARD ========================
-@app.get("/turnos/proximos", response_model=List[schemas.TurnoOut])
-def proximos_turnos(
-    dias: int = Query(1, ge=1, le=30),
-    estado: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    fecha_hoy = date.today()
-    fecha_fin = fecha_hoy + timedelta(days=dias - 1)
-    return crud.buscar_turnos(db, fecha_desde=fecha_hoy, fecha_hasta=fecha_fin, estado=estado)
 
 # ===================== REPORTES =========================
 app.include_router(reportes.router, prefix="/reportes", tags=["Reportes"])

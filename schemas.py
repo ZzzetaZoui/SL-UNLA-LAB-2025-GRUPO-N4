@@ -72,3 +72,26 @@ class ReportePersonaCancelados(BaseModel):
 
     class Config:
         orm_mode = True
+# ---- Nuevo esquema para Reporte 3 ----
+class TurnoSimpleOut(BaseModel): #evita repetir el objeto persona dentro de cada turno
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+
+    class Config:
+        orm_mode = True
+
+class ReportePersonaConTurnos(BaseModel):
+    persona: PersonaOut
+    turnos: List[TurnoSimpleOut]
+
+    class Config:
+        
+        orm_mode = True
+# ---- Persona con Turnos (para /estado-personas) ----
+class PersonaConTurnosOut(PersonaOut):
+    turnos: List[TurnoSimpleOut] = []
+
+    class Config:
+        orm_mode = True

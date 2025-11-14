@@ -14,7 +14,7 @@ import os
 router = APIRouter()
 
 # 🟩 Reporte 1: Obtener todos los turnos de una fecha específica
-@router.get("/turnos-por-fecha", response_model=list[schemas.TurnoOut])
+@router.get("/turnos-por-fecha", response_model=list[schemas.ReportePersonaConTurnos])
 def turnos_por_fecha(fecha: date = Query(...), db: Session = Depends(get_db)):
     turnos = (
         db.query(models.Turno)
@@ -23,17 +23,39 @@ def turnos_por_fecha(fecha: date = Query(...), db: Session = Depends(get_db)):
         .order_by(models.Turno.hora)
         .all()
     )
-    return turnos
+
+    if not turnos:
+        raise HTTPException(status_code=404, detail="No hay turnos para esa fecha")
+
+    # Agrupar por persona
+    agrupado = {}
+
+    for t in turnos:
+        pid = t.persona.id
+        
+        if pid not in agrupado:
+            agrupado[pid] = {
+                "persona": schemas.PersonaOut.from_orm(t.persona),
+                "turnos": []
+            }
+
+        agrupado[pid]["turnos"].append(
+            schemas.TurnoSimpleOut.from_orm(t)  # sin repetir persona
+        )
+
+    return [schemas.ReportePersonaConTurnos(**data) for data in agrupado.values()]
 
 
-# 🟩 Reporte 2: Obtener la cantidad de turnos cancelados por mes
-@router.get("/turnos-cancelados-por-mes", response_model=schemas.ReporteCanceladosMes)
+# 🟩 Reporte 2 (corregido): Obtener los turnos cancelados del mes agrupados por persona
+@router.get("/turnos-cancelados-por-mes", response_model=list[schemas.ReportePersonaConTurnos])
 def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
     today = date.today()
     anio, mes = today.year, today.month
+
     primer_dia = date(anio, mes, 1)
     primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
 
+    # 1️⃣ Obtener turnos cancelados del mes con su persona
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
@@ -41,7 +63,7 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
             models.Turno.estado == "cancelado",
             models.Turno.fecha >= primer_dia,
             models.Turno.fecha < primer_dia_sgte,
-            models.Turno.persona_id.isnot(None)  # ✅ evita turnos sin persona
+            models.Turno.persona_id.isnot(None)
         )
         .order_by(models.Turno.fecha, models.Turno.hora)
         .all()
@@ -50,26 +72,33 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
     if not turnos:
         raise HTTPException(status_code=404, detail="No hay turnos cancelados este mes")
 
-    # ✅ CORRECCIÓN: convertir ORM -> Pydantic
-    turnos_out = [schemas.TurnoOut.from_orm(t) for t in turnos]
+    # 2️⃣ Agrupar por persona
+    agrupado = {}  # persona_id → { persona, turnos }
 
-    return schemas.ReporteCanceladosMes(
-        anio=anio,
-        mes=month_name[mes].lower(),
-        cantidad=len(turnos_out),
-        turnos=turnos_out,
-    )
+    for t in turnos:
+        pid = t.persona.id
+
+        if pid not in agrupado:
+            agrupado[pid] = {
+                "persona": schemas.PersonaOut.from_orm(t.persona),
+                "turnos": []
+            }
+
+        agrupado[pid]["turnos"].append(
+            schemas.TurnoSimpleOut.from_orm(t)  # ❗ sin repetir persona dentro del turno
+        )
+
+    # 3️⃣ Convertir a lista
+    return [schemas.ReportePersonaConTurnos(**data) for data in agrupado.values()]
 
 
 # 🟩 Reporte 3: Obtener una persona por DNI y todos sus turnos
 @router.get("/turnos-por-persona", response_model=schemas.ReportePersonaConTurnos)
 def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)):
-    # Buscar la persona por DNI
     persona = db.query(models.Persona).filter(models.Persona.dni == dni).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
 
-    # Traer todos los turnos asociados a esa persona
     turnos = (
         db.query(models.Turno)
         .filter(models.Turno.persona_id == persona.id)
@@ -77,10 +106,8 @@ def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)):
         .all()
     )
 
-    # ✅ CORRECCIÓN: convertir ORM -> Pydantic
-    turnos_out = [schemas.TurnoOut.from_orm(t) for t in turnos]
+    turnos_out = [schemas.TurnoSimpleOut.from_orm(t) for t in turnos]
 
-    # Retornar en formato "persona + turnos"
     return schemas.ReportePersonaConTurnos(
         persona=schemas.PersonaOut.from_orm(persona),
         turnos=turnos_out
@@ -154,38 +181,59 @@ def personas_por_estado(habilitada: bool, db: Session = Depends(get_db)):
 
 
 # 🟩 Reporte 7: PDF de turnos cancelados del mes actual
+# 🟩 Reporte 7: PDF de turnos cancelados del mes seleccionado
 @router.get("/turnos-cancelados-pdf")
-def descargar_pdf_turnos_cancelados(db: Session = Depends(get_db)):
-    today = date.today()
-    anio, mes = today.year, today.month
+def turnos_cancelados_pdf(
+    mes: int = Query(..., ge=1, le=12),
+    anio: int = Query(..., ge=2000),
+    db: Session = Depends(get_db)
+):
+    primer_dia = date(anio, mes, 1)
+    primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
 
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
-        .filter(models.Turno.estado == "cancelado")
-        .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}")
+        .filter(
+            models.Turno.estado == "cancelado",
+            models.Turno.fecha >= primer_dia,
+            models.Turno.fecha < primer_dia_sgte,
+            models.Turno.persona_id.isnot(None)
+        )
+        .order_by(models.Turno.fecha, models.Turno.hora)
         .all()
     )
 
     if not turnos:
-        raise HTTPException(status_code=404, detail="No hay turnos cancelados este mes")
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados en este mes.")
 
-    # Validar relaciones
+    # Agrupar por persona
+    agrupado = {}
     for t in turnos:
-        if not t.persona:
-            raise HTTPException(status_code=500, detail=f"Turno {t.id} no tiene persona asociada")
+        pid = t.persona.id
+        if pid not in agrupado:
+            agrupado[pid] = []
+        agrupado[pid].append(t)
 
-    try:
-        nombre_archivo = generar_pdf_turnos_cancelados(turnos, anio, month_name[mes].lower(), len(turnos))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+    mes_nombre = month_name[mes].lower()
+
+    nombre_archivo = generar_pdf_turnos_cancelados(
+        agrupado=agrupado,
+        anio=anio,
+        mes=mes_nombre,
+    )
 
     ruta_archivo = os.path.join("pdf", nombre_archivo)
-    if not os.path.exists(ruta_archivo):
-        raise HTTPException(status_code=500, detail="El archivo PDF no fue creado")
 
-    return FileResponse(path=ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
+    return FileResponse(
+        ruta_archivo,
+        media_type="application/pdf",
+        filename=nombre_archivo
+    )
 
+
+    ruta_archivo = os.path.join("pdf", nombre_archivo)
+    return FileResponse(ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
 
 # 🟩 Reporte 8: PDF de turnos confirmados del mes actual
 @router.get("/turnos-confirmados-pdf")

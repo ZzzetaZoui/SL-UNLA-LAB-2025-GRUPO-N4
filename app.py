@@ -8,6 +8,8 @@ import schemas
 import crud
 import reportes  # <-- Rutas de reportes
 import reportes_pdf # <-- exportaciones (nuevoo)
+from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,14 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API de Turnos", version="1.0")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ------------------- RAÍZ -------------------
 @app.get("/")
@@ -119,18 +113,18 @@ def cancelar_turno(turno_id: int, db: Session = Depends(get_db)):
     turno = crud.obtener_turno(db, turno_id)
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
-    if turno.estado in ["cancelado", "asistido"]:
+    if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
         raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
-    return crud.cambiar_estado_turno(db, turno_id, "cancelado")
+    return crud.cambiar_estado_turno(db, turno_id, ESTADO_TURNO_CANCELADO)
 
 @app.put("/turnos/{turno_id}/confirmar", response_model=schemas.TurnoOut)
 def confirmar_turno(turno_id: int, db: Session = Depends(get_db)):
     turno = crud.obtener_turno(db, turno_id)
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
-    if turno.estado in ["cancelado", "asistido"]:
+    if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
         raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
-    return crud.cambiar_estado_turno(db, turno_id, "confirmado")
+    return crud.cambiar_estado_turno(db, turno_id, ESTADO_TURNO_CONFIRMADO)
 
 # ===================== TURNOS DISPONIBLES =========================
 @app.get("/turnos-disponibles", response_model=List[schemas.SlotDisponible])

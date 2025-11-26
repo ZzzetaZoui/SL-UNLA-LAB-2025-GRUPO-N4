@@ -6,6 +6,7 @@ from datetime import date
 from calendar import month_name
 from database import get_db
 import schemas, models, crud
+from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_CONFIRMADO
 #from reportes_pdf import generar_pdf_turnos_cancelados
 #from reportes_pdf import generar_pdf_reportes
 from reportes_pdf import generar_pdf_turnos_cancelados, generar_pdf_turnos_confirmados
@@ -60,7 +61,7 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
         .filter(
-            models.Turno.estado == "cancelado",
+            models.Turno.estado == ESTADO_TURNO_CANCELADO,
             models.Turno.fecha >= primer_dia,
             models.Turno.fecha < primer_dia_sgte,
             models.Turno.persona_id.isnot(None)
@@ -122,7 +123,7 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
             models.Turno.persona_id,
             func.count(models.Turno.id).label("total_cancelados")
         )
-        .filter(models.Turno.estado == "cancelado")
+        .filter(models.Turno.estado == ESTADO_TURNO_CANCELADO)
         .group_by(models.Turno.persona_id)
         .having(func.count(models.Turno.id) >= min)
         .subquery()
@@ -164,7 +165,7 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
 def turnos_confirmados(desde: date, hasta: date, page: int = 1, size: int = 5, db: Session = Depends(get_db)):
     skip = (page - 1) * size
     # 🔹 Se asume que dentro de crud.buscar_turnos se usa joinedload(Turno.persona)
-    return crud.buscar_turnos(db, fecha_desde=desde, fecha_hasta=hasta, estado="confirmado", skip=skip, limit=size)
+    return crud.buscar_turnos(db, fecha_desde=desde, fecha_hasta=hasta, estado=ESTADO_TURNO_CONFIRMADO, skip=skip, limit=size)
 
 
 # 🟩 Reporte 6: Personas por estado (habilitadas o deshabilitadas)
@@ -195,7 +196,7 @@ def turnos_cancelados_pdf(
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
         .filter(
-            models.Turno.estado == "cancelado",
+            models.Turno.estado == ESTADO_TURNO_CANCELADO,
             models.Turno.fecha >= primer_dia,
             models.Turno.fecha < primer_dia_sgte,
             models.Turno.persona_id.isnot(None)
@@ -244,7 +245,7 @@ def descargar_pdf_turnos_confirmados(db: Session = Depends(get_db)):
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
-        .filter(models.Turno.estado == "confirmado")
+        .filter(models.Turno.estado == ESTADO_TURNO_CONFIRMADO)
         .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}")
         .all()
     )

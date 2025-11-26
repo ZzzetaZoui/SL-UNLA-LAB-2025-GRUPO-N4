@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 import models, schemas
 from typing import Optional, List
 from datetime import date, time, datetime, timedelta
+from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 
 # --------------> Personas <------------
 
@@ -136,7 +137,7 @@ def existe_conflicto_turno(
             models.Persona.dni == dni,
             models.Turno.fecha == fecha,
             models.Turno.hora == hora,
-            models.Turno.estado != "cancelado"
+            models.Turno.estado != ESTADO_TURNO_CANCELADO
         )
     )
     if excluir_turno_id is not None:
@@ -149,7 +150,7 @@ def reprogramar_turno(db: Session, turno_id: int, nueva_fecha: date, nueva_hora:
         return None
     t.fecha = nueva_fecha
     t.hora = nueva_hora
-    t.estado = "pendiente" # Un turno reprogramado vuelve a pendiente
+    t.estado = ESTADO_TURNO_PENDIENTE # Un turno reprogramado vuelve a pendiente
     db.commit()
     db.refresh(t)
     return t
@@ -157,7 +158,7 @@ def reprogramar_turno(db: Session, turno_id: int, nueva_fecha: date, nueva_hora:
 def obtener_turnos_disponibles(db: Session, fecha: date):
    inicio, fin = time(9, 0), time(17, 0)
    intervalo = timedelta(minutes=30)
-   ocupados = {t.hora for t in buscar_turnos(db, fecha_desde=fecha, fecha_hasta=fecha) if t.estado != "cancelado"}
+   ocupados = {t.hora for t in buscar_turnos(db, fecha_desde=fecha, fecha_hasta=fecha) if t.estado != ESTADO_TURNO_CANCELADO}
    slots, actual = [], datetime.combine(fecha, inicio)
    while actual.time() < fin:
       hora = actual.time()

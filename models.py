@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Time, Enum, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
+from config import ESTADO_TURNO_PENDIENTE, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_ASISTIDO
 
 
 class Persona(Base):
@@ -24,9 +25,9 @@ class Turno(Base):
     fecha = Column(Date, nullable=False)
     hora = Column(Time, nullable=False)
     estado = Column(
-        Enum("pendiente", "cancelado", "confirmado", "asistido",
+        Enum(ESTADO_TURNO_PENDIENTE, ESTADO_TURNO_CANCELADO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_ASISTIDO,
              name="estado_turno"),
-        default="pendiente"
+        default=ESTADO_TURNO_PENDIENTE
     )
     persona_id = Column(Integer, ForeignKey("personas.id"))
     persona = relationship("Persona", back_populates="turnos")

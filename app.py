@@ -8,6 +8,7 @@ import schemas
 import crud
 import reportes  # <-- Rutas de reportes
 import reportes_pdf # <-- exportaciones (nuevoo)
+import reportes_csv
 from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 
 
@@ -133,4 +134,7 @@ def turnos_disponibles(fecha: date = Query(...), db: Session = Depends(get_db)):
 
 
 # ===================== REPORTES =========================
-app.include_router(reportes.router, prefix="/reportes", tags=["Reportes"])
+#app.include_router(reportes.router, prefix="/reportes", tags=["Reportes"])
+
+app.include_router(reportes.router, prefix="/reportes", tags=["Reportes JSON/PDF"])
+app.include_router(reportes_csv.router, prefix="/reportes-csv", tags=["Reportes CSV"])

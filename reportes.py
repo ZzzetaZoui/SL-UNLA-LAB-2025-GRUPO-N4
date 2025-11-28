@@ -9,6 +9,7 @@ import schemas, models, crud
 from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_CONFIRMADO
 #from reportes_pdf import generar_pdf_turnos_cancelados
 #from reportes_pdf import generar_pdf_reportes
+from reportes_pdf import generar_pdf_personas
 from reportes_pdf import generar_pdf_turnos_cancelados, generar_pdf_turnos_confirmados
 import os
 
@@ -267,3 +268,38 @@ def descargar_pdf_turnos_confirmados(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="El archivo PDF no fue creado")
 
     return FileResponse(path=ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
+
+
+#PDF de personas
+from reportes_pdf import generar_pdf_personas
+
+# 🟩 Reporte 9: PDF de listado de personas
+@router.get("/personas-pdf")
+def personas_pdf(db: Session = Depends(get_db)):
+    personas = crud.listar_personas(db)
+    if not personas:
+        raise HTTPException(status_code=404, detail="No hay personas registradas")
+
+    nombre_archivo = generar_pdf_personas(personas)
+    ruta_archivo = os.path.join("pdf", nombre_archivo)
+
+    return FileResponse(ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
+
+
+#pruebas de Qr
+# pruebas de QR
+@router.get("/qr/confirmar/{turno_id}")
+def confirmar_turno_via_qr(turno_id: int, db: Session = Depends(get_db)):
+    turno = db.query(models.Turno).filter(models.Turno.id == turno_id).first()
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    if turno.estado == ESTADO_TURNO_CONFIRMADO:
+        return {"mensaje": f"El turno {turno.id} ya estaba confirmado"}
+
+    turno.estado = ESTADO_TURNO_CONFIRMADO
+    db.commit()
+    db.refresh(turno)
+
+    return {"mensaje": f"Turno {turno.id} confirmado correctamente"}
+#por si quiero implementar en postman http://127.0.0.1:8000/reportes/qr/confirmar/3

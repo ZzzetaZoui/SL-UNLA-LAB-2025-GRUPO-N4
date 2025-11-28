@@ -138,3 +138,19 @@ def turnos_disponibles(fecha: date = Query(...), db: Session = Depends(get_db)):
 
 app.include_router(reportes.router, prefix="/reportes", tags=["Reportes JSON/PDF"])
 app.include_router(reportes_csv.router, prefix="/reportes-csv", tags=["Reportes CSV"])
+
+#qr
+@app.get("/turnos/{turno_id}/confirmar")
+def confirmar_turno_via_qr(turno_id: int, db: Session = Depends(get_db)):
+    turno = crud.obtener_turno(db, turno_id)
+    if not turno:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+
+    if turno.estado == ESTADO_TURNO_CONFIRMADO:
+        return {"mensaje": f"El turno {turno.id} ya estaba confirmado"}
+
+    turno.estado = ESTADO_TURNO_CONFIRMADO
+    db.commit()
+    db.refresh(turno)
+
+    return {"mensaje": f"Turno {turno.id} confirmado correctamente"}

@@ -12,12 +12,12 @@ import reportes_csv
 from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 
 
-from fastapi.middleware.cors import CORSMiddleware
+#from fastapi.middleware.cors import CORSMiddleware
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="API de Turnos", version="1.0")
+app = FastAPI(title="API de Turnos", version="1.0") 
 
 # ------------------- RAÍZ -------------------
 @app.get("/")
@@ -28,9 +28,9 @@ def root():
 def calcular_edad(fecha_nacimiento: date) -> int:
     hoy = date.today()
     return hoy.year - fecha_nacimiento.year - (
-        (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day)
+        (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day) #valida para q sea mayor de edad
     )
-
+#
 # ========================= PERSONAS =====================
 @app.post("/personas", response_model=schemas.PersonaOut, status_code=status.HTTP_201_CREATED)
 def crear_persona(body: schemas.PersonaCreate, db: Session = Depends(get_db)):
@@ -83,9 +83,10 @@ def crear_turno(body: schemas.TurnoCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Conflicto de horario")
     return crud.crear_turno(db, body)
 
-@app.get("/turnos", response_model=List[schemas.TurnoOut])
+@app.get("/turnos", response_model=List[schemas.TurnoListOut])
 def listar_turnos(db: Session = Depends(get_db)):
-    return crud.listar_turnos(db)
+    turnos = crud.listar_turnos(db)
+    return [schemas.TurnoListOut.from_orm(t) for t in turnos]
 
 @app.get("/turnos/{turno_id}", response_model=schemas.TurnoOut)
 def obtener_turno(turno_id: int, db: Session = Depends(get_db)):

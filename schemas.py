@@ -95,3 +95,13 @@ class PersonaConTurnosOut(PersonaOut):
 
     class Config:
         orm_mode = True
+#específico para el listado
+class TurnoListOut(BaseModel):
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+    persona_id: int   # solo el ID de la persona
+
+    class Config:
+        orm_mode = True

@@ -20,7 +20,7 @@ router = APIRouter()
 def guardar_csv(data: list[dict], nombre_archivo: str):
     os.makedirs("csv", exist_ok=True)  # crea carpeta si no existe
     ruta_csv = os.path.join("csv", nombre_archivo)
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data) #convierte la lista para que pandas pueda leerla
     df.to_csv(ruta_csv, index=False)
     print(f"✅ CSV generado: {ruta_csv}")
     return ruta_csv
@@ -30,16 +30,16 @@ def guardar_csv(data: list[dict], nombre_archivo: str):
 # -------------------------------------------------------------------
 @router.get("/turnos-cancelados-csv")
 def turnos_cancelados_csv(
-    mes: int = Query(..., ge=1, le=12),
+    mes: int = Query(..., ge=1, le=12), #recibe como parametros.
     anio: int = Query(..., ge=2000),
     db: Session = Depends(get_db)
 ):
     primer_dia = date(anio, mes, 1)
-    primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
+    primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1) #basic crea el incio del rango empezando por la fecha seleccionada
 
     turnos = (
         db.query(models.Turno)
-        .options(joinedload(models.Turno.persona))
+        .options(joinedload(models.Turno.persona)) #asegyrar q el turno venga con cada persona
         .filter(
             models.Turno.estado == ESTADO_TURNO_CANCELADO,
             models.Turno.fecha >= primer_dia,
@@ -82,7 +82,7 @@ def turnos_confirmados_csv(db: Session = Depends(get_db)):
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
         .filter(models.Turno.estado == ESTADO_TURNO_CONFIRMADO)
-        .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}")
+        .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}") #convierte fecha en string
         .all()
     )
 

@@ -15,6 +15,8 @@ import os
 
 router = APIRouter()
 
+# Depends(get_db)Inyecta una sesión de base de datos en cada endpoint.
+
 # 🟩 Reporte 1: Obtener todos los turnos de una fecha específica
 @router.get("/turnos-por-fecha", response_model=list[schemas.ReportePersonaConTurnos])
 def turnos_por_fecha(fecha: date = Query(...), db: Session = Depends(get_db)):
@@ -87,7 +89,7 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
             }
 
         agrupado[pid]["turnos"].append(
-            schemas.TurnoSimpleOut.from_orm(t)  # ❗ sin repetir persona dentro del turno
+            schemas.TurnoSimpleOut.from_orm(t)  #  sin repetir persona dentro del turno
         )
 
     # 3️⃣ Convertir a lista
@@ -96,7 +98,7 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
 
 # 🟩 Reporte 3: Obtener una persona por DNI y todos sus turnos
 @router.get("/turnos-por-persona", response_model=schemas.ReportePersonaConTurnos)
-def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)):
+def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)): #así no hay que abrir/cerrar conexiones manualmente.
     persona = db.query(models.Persona).filter(models.Persona.dni == dni).first()
     if not persona:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
@@ -105,7 +107,7 @@ def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)):
         db.query(models.Turno)
         .filter(models.Turno.persona_id == persona.id)
         .order_by(models.Turno.fecha, models.Turno.hora)
-        .all()
+        .all() #devuelve la lista de objetos
     )
 
     turnos_out = [schemas.TurnoSimpleOut.from_orm(t) for t in turnos]
@@ -122,11 +124,11 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
     subq = (
         db.query(
             models.Turno.persona_id,
-            func.count(models.Turno.id).label("total_cancelados")
+            func.count(models.Turno.id).label("total_cancelados") #contar turnos cancelados por persona.
         )
         .filter(models.Turno.estado == ESTADO_TURNO_CANCELADO)
         .group_by(models.Turno.persona_id)
-        .having(func.count(models.Turno.id) >= min)
+        .having(func.count(models.Turno.id) >= min) #h filtra personas 
         .subquery()
     )
 
@@ -164,8 +166,8 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
 # 🟩 Reporte 5: Turnos confirmados
 @router.get("/turnos-confirmados", response_model=list[schemas.TurnoOut])
 def turnos_confirmados(desde: date, hasta: date, page: int = 1, size: int = 5, db: Session = Depends(get_db)):
-    skip = (page - 1) * size
-    # 🔹 Se asume que dentro de crud.buscar_turnos se usa joinedload(Turno.persona)
+    skip = (page - 1) * size #paginacion, limit define cuantops traer
+    #  dentro de crud.buscar_turnos se usa joinedload(Turno.persona)
     return crud.buscar_turnos(db, fecha_desde=desde, fecha_hasta=hasta, estado=ESTADO_TURNO_CONFIRMADO, skip=skip, limit=size)
 
 
@@ -182,7 +184,6 @@ def personas_por_estado(habilitada: bool, db: Session = Depends(get_db)):
     return personas
 
 
-# 🟩 Reporte 7: PDF de turnos cancelados del mes actual
 # 🟩 Reporte 7: PDF de turnos cancelados del mes seleccionado
 @router.get("/turnos-cancelados-pdf")
 def turnos_cancelados_pdf(
@@ -286,7 +287,7 @@ def personas_pdf(db: Session = Depends(get_db)):
     return FileResponse(ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
 
 
-#pruebas de Qr
+
 # pruebas de QR
 @router.get("/qr/confirmar/{turno_id}")
 def confirmar_turno_via_qr(turno_id: int, db: Session = Depends(get_db)):

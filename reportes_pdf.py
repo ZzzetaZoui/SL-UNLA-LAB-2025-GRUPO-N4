@@ -14,14 +14,14 @@ import models
 # -------------------------------------------------------------------
 # Ruta del logo (ajustada a carpeta static)
 # -------------------------------------------------------------------
-BASE_DIR = Path(__file__).parent
-LOGO_PATH = BASE_DIR / "static" / "UnlaLogo_.png"
+BASE_DIR = Path(__file__).parent #definicion de ruta
+LOGO_PATH = BASE_DIR / "static" / "UnlaLogo_.png" #base dir obtiene la carpeta
 
 # -------------------------------------------------------------------
 # Función auxiliar para sobrescribir siempre el archivo
 # -------------------------------------------------------------------
 def guardar_pdf(pdf, nombre_archivo):
-    ruta_pdf = os.path.join("pdf", nombre_archivo)
+    ruta_pdf = os.path.join("pdf", nombre_archivo) #crea la carpeta si no existe
     os.makedirs("pdf", exist_ok=True)
 
     with open(ruta_pdf, "wb") as pdf_file_handle:
@@ -53,7 +53,7 @@ def generar_pdf_turnos_cancelados(agrupado: dict, anio: int, mes: str):
     total = sum(len(turnos) for turnos in agrupado.values())
     layout.add(Paragraph(f"Cantidad total de turnos cancelados: {total}", font_size=12))
 
-    # 👉 recorrer personas
+    #  recorrer personas
     for persona_id, turnos in agrupado.items():
         persona = turnos[0].persona
 
@@ -88,15 +88,15 @@ def generar_pdf_turnos_confirmados(turnos: list[models.Turno], anio: int, mes: s
     pdf = Document()
     page = Page()
     pdf.add_page(page)
-    layout = SingleColumnLayout(page)
+    layout = SingleColumnLayout(page) #ordenar logo, tablas 
 
     # Logo
     if LOGO_PATH.exists():
         layout.add(Image(LOGO_PATH, width=64, height=64, horizontal_alignment=Alignment.CENTERED))
 
-    # 👉 QR general al sistema
+    #  QR general al sistema
     qr_img = qrcode.make("http://127.0.0.1:8000/turnos")
-    qr_path = "static/qr_general.png"
+    qr_path = "static/qr_general.png" #se guarda como imagen cada qr generado 
     qr_img.save(qr_path)
     layout.add(Image(Path(qr_path), width=64, height=64, horizontal_alignment=Alignment.CENTERED))
 
@@ -123,7 +123,7 @@ def generar_pdf_turnos_confirmados(turnos: list[models.Turno], anio: int, mes: s
             font="Helvetica-Bold"
         ))
 
-        # 👉 Tabla de turnos con QR por turno
+        #  Tabla de turnos con QR por turno
         table = FixedColumnWidthTable(number_of_rows=len(lista_turnos) + 1, number_of_columns=3)
 
         # encabezados
@@ -171,13 +171,13 @@ def generar_pdf_personas(personas: list[models.Persona], titulo: str = "Listado 
     layout.add(Paragraph(titulo, font_size=18, font="Helvetica-Bold", horizontal_alignment=Alignment.CENTERED))
     layout.add(Paragraph(f"Cantidad total de personas: {len(personas)}", font_size=12))
 
-    # 👉 Tabla con datos principales
+    #  Tabla con datos principales
     table = FixedColumnWidthTable(number_of_rows=len(personas) + 1, number_of_columns=4)
 
     # Encabezados
     encabezados = ["Apellido", "Nombre", "DNI", "Activo"]
     for h in encabezados:
-        table.add(TableCell(Paragraph(h, font="Helvetica-Bold"), background_color=HexColor("E0E0E0")))
+        table.add(TableCell(Paragraph(h, font="Helvetica-Bold"), background_color=HexColor("E0E0E0"))) #color gris para identificar 
 
     # Filas alternadas
     for i, p in enumerate(personas):
@@ -187,10 +187,10 @@ def generar_pdf_personas(personas: list[models.Persona], titulo: str = "Listado 
         table.add(TableCell(Paragraph(str(p.dni)), background_color=bg_color))
         table.add(TableCell(Paragraph("Sí" if p.activo else "No"), background_color=bg_color))
 
-    # 👉 Corregido: sin horizontal_alignment en layout.add()
+    # sin horizontal_alignment en layout.add()
     layout.add(table)
 
-    # 👉 Emails como detalle debajo
+    #  Emails detalle debajo
     layout.add(Paragraph(" "))  # espacio
     layout.add(Paragraph("Detalles de contacto:", font_size=14, font="Helvetica-Bold"))
 

@@ -30,7 +30,7 @@ def calcular_edad(fecha_nacimiento: date) -> int:
     return hoy.year - fecha_nacimiento.year - (
         (hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day) #valida para q sea mayor de edad
     )
-#
+
 # ========================= PERSONAS =====================
 @app.post("/personas", response_model=schemas.PersonaOut, status_code=status.HTTP_201_CREATED)
 def crear_persona(body: schemas.PersonaCreate, db: Session = Depends(get_db)):
@@ -40,14 +40,22 @@ def crear_persona(body: schemas.PersonaCreate, db: Session = Depends(get_db)):
 
 @app.get("/personas", response_model=List[schemas.PersonaOut])
 def listar_personas(db: Session = Depends(get_db)):
-    return crud.listar_personas(db)
+    personas = crud.listar_personas(db)
+    personas_out = []
+    for p in personas:
+        persona_schema = schemas.PersonaOut.from_orm(p)
+        persona_schema.edad = calcular_edad(p.fecha_nacimiento)
+        personas_out.append(persona_schema)
+    return personas_out
 
 @app.get("/personas/{dni}", response_model=schemas.PersonaOut)
 def obtener_persona(dni: int, db: Session = Depends(get_db)):
     p = crud.obtener_persona(db, dni)
     if not p:
         raise HTTPException(status_code=404, detail="Persona no encontrada")
-    return p
+    persona_schema = schemas.PersonaOut.from_orm(p)
+    persona_schema.edad = calcular_edad(p.fecha_nacimiento)
+    return persona_schema
 
 @app.put("/personas/{dni}", response_model=schemas.PersonaOut)
 def actualizar_persona(dni: int, body: schemas.PersonaCreate, db: Session = Depends(get_db)):
@@ -61,10 +69,6 @@ def eliminar_persona(dni: int, db: Session = Depends(get_db)):
     if not crud.eliminar_persona(db, dni):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
     return
-
-# @app.get("/personas/{dni}/turnos", response_model=List[schemas.TurnoOut])
-# def turnos_de_persona(dni: int, db: Session = Depends(get_db)):
-#     return crud.buscar_turnos(db, dni=dni)
 
 @app.get("/personas/{dni}/turnos", response_model=List[schemas.TurnoOut])
 def turnos_de_persona(dni: int, db: Session = Depends(get_db)):
@@ -118,15 +122,6 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
 
 # ===================== GESTIÓN DE ESTADO (Punto D) =====================
 
-# @app.put("/turnos/{turno_id}/cancelar", response_model=schemas.TurnoOut)
-# def cancelar_turno(turno_id: int, db: Session = Depends(get_db)):
-#     turno = crud.obtener_turno(db, turno_id)
-#     if not turno:
-#         raise HTTPException(status_code=404, detail="Turno no encontrado")
-#     if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
-#         raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
-#     return crud.cambiar_estado_turno(db, turno_id, ESTADO_TURNO_CANCELADO)
-
 @app.put("/turnos/{turno_id}/cancelar", response_model=schemas.TurnoOut)
 def cancelar_turno(turno_id: int, db: Session = Depends(get_db)):
     turno = crud.obtener_turno(db, turno_id)
@@ -159,7 +154,6 @@ def turnos_disponibles(fecha: date = Query(...), db: Session = Depends(get_db)):
 
 
 # ===================== REPORTES =========================
-#app.include_router(reportes.router, prefix="/reportes", tags=["Reportes"])
 
 app.include_router(reportes.router, prefix="/reportes", tags=["Reportes JSON/PDF"])
 app.include_router(reportes_csv.router, prefix="/reportes-csv", tags=["Reportes CSV"])

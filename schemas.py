@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from datetime import date, time
 from typing import List, Optional
+
 
 # ---- Persona ----
 class PersonaBase(BaseModel):
@@ -14,13 +15,36 @@ class PersonaBase(BaseModel):
 class PersonaCreate(PersonaBase):
     pass
 
-class PersonaOut(PersonaBase):
+# class PersonaOut(PersonaBase):
+#     id: int
+#     activo: Optional[bool] = True
+#     edad: Optional[int] = None
+
+#     class Config:
+#         orm_mode = True
+
+class PersonaOut(BaseModel):
     id: int
+    nombre: str
+    apellido: str
+    email: EmailStr
+    dni: int
+    telefono: str
+    fecha_nacimiento: date
     activo: Optional[bool] = True
     edad: Optional[int] = None
 
     class Config:
         orm_mode = True
+
+    @validator("edad", always=True)
+    def calcular_edad(cls, v, values):
+        fn = values.get("fecha_nacimiento")
+        if fn:
+            hoy = date.today()
+            edad = hoy.year - fn.year - ((hoy.month, hoy.day) < (fn.month, fn.day))
+            return edad
+        return None
 
 # ---- Turno ----
 class TurnoBase(BaseModel):

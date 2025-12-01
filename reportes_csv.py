@@ -74,20 +74,27 @@ def turnos_cancelados_csv(
 # REPORTE 5 - TURNOS CONFIRMADOS (CSV)
 # -------------------------------------------------------------------
 @router.get("/turnos-confirmados-csv")
-def turnos_confirmados_csv(db: Session = Depends(get_db)):
-    today = date.today()
-    anio, mes = today.year, today.month
+def turnos_confirmados_csv(
+    mes: int = Query(..., ge=1, le=12),
+    anio: int = Query(..., ge=2000),
+    db: Session = Depends(get_db)
+):
+    primer_dia = date(anio, mes, 1)
+    primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
 
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
-        .filter(models.Turno.estado == ESTADO_TURNO_CONFIRMADO)
-        .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}") #convierte fecha en string
+        .filter(
+            models.Turno.estado == ESTADO_TURNO_CONFIRMADO,
+            models.Turno.fecha >= primer_dia,
+            models.Turno.fecha < primer_dia_sgte
+        )
         .all()
     )
 
     if not turnos:
-        raise HTTPException(status_code=404, detail="No hay turnos confirmados este mes")
+        raise HTTPException(status_code=404, detail="No hay turnos confirmados en ese mes")
 
     data = [
         {
@@ -101,7 +108,7 @@ def turnos_confirmados_csv(db: Session = Depends(get_db)):
         for t in turnos
     ]
 
-    nombre_archivo = f"reporte_confirmados_{month_name[mes].lower()}_{anio}.csv"
+    nombre_archivo = f"reporteconfirmados{month_name[mes].lower()}{anio}.csv"
     ruta_csv = guardar_csv(data, nombre_archivo)
 
     return FileResponse(ruta_csv, media_type="text/csv", filename=nombre_archivo)

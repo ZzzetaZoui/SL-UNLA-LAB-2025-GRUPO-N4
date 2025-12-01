@@ -17,7 +17,7 @@ router = APIRouter()
 
 # Depends(get_db)Inyecta una sesión de base de datos en cada endpoint.
 
-# 🟩 Reporte 1: Obtener todos los turnos de una fecha específica
+# Reporte 1: Obtener todos los turnos de una fecha específica
 @router.get("/turnos-por-fecha", response_model=list[schemas.ReportePersonaConTurnos])
 def turnos_por_fecha(fecha: date = Query(...), db: Session = Depends(get_db)):
     turnos = (
@@ -50,16 +50,17 @@ def turnos_por_fecha(fecha: date = Query(...), db: Session = Depends(get_db)):
     return [schemas.ReportePersonaConTurnos(**data) for data in agrupado.values()]
 
 
-# 🟩 Reporte 2 (corregido): Obtener los turnos cancelados del mes agrupados por persona
+# Reporte 2: Obtener los turnos cancelados del mes agrupados por persona
 @router.get("/turnos-cancelados-por-mes", response_model=list[schemas.ReportePersonaConTurnos])
-def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
-    today = date.today()
-    anio, mes = today.year, today.month
-
+def turnos_cancelados_por_mes(
+    mes: int = Query(..., ge=1, le=12),
+    anio: int = Query(..., ge=2000),
+    db: Session = Depends(get_db)
+):
     primer_dia = date(anio, mes, 1)
     primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
 
-    # 1️⃣ Obtener turnos cancelados del mes con su persona
+    #  Obtener turnos cancelados del mes con su persona
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
@@ -74,29 +75,24 @@ def turnos_cancelados_por_mes(db: Session = Depends(get_db)):
     )
 
     if not turnos:
-        raise HTTPException(status_code=404, detail="No hay turnos cancelados este mes")
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados en ese mes")
 
-    # 2️⃣ Agrupar por persona
-    agrupado = {}  # persona_id → { persona, turnos }
-
+    #  Agrupar por persona
+    agrupado = {}
     for t in turnos:
         pid = t.persona.id
-
         if pid not in agrupado:
             agrupado[pid] = {
                 "persona": schemas.PersonaOut.from_orm(t.persona),
                 "turnos": []
             }
+        agrupado[pid]["turnos"].append(schemas.TurnoSimpleOut.from_orm(t))
 
-        agrupado[pid]["turnos"].append(
-            schemas.TurnoSimpleOut.from_orm(t)  #  sin repetir persona dentro del turno
-        )
-
-    # 3️⃣ Convertir a lista
+    #  Convertir a lista
     return [schemas.ReportePersonaConTurnos(**data) for data in agrupado.values()]
 
 
-# 🟩 Reporte 3: Obtener una persona por DNI y todos sus turnos
+# Reporte 3: Obtener una persona por DNI y todos sus turnos
 @router.get("/turnos-por-persona", response_model=schemas.ReportePersonaConTurnos)
 def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)): #así no hay que abrir/cerrar conexiones manualmente.
     persona = db.query(models.Persona).filter(models.Persona.dni == dni).first()
@@ -118,7 +114,7 @@ def turnos_por_persona(dni: int = Query(...), db: Session = Depends(get_db)): #a
     )
 
 
-# 🟩 Reporte 4: Personas con más de N turnos cancelados
+# Reporte 4: Personas con más de N turnos cancelados
 @router.get("/turnos-cancelados", response_model=list[schemas.ReportePersonaCancelados])
 def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get_db)):
     subq = (
@@ -140,7 +136,7 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
 
     reportes = []
     for persona, total in resultados:
-        # ✅ SOLO turnos cancelados de esa persona
+        # SOLO turnos cancelados de esa persona
         turnos = (
             db.query(models.Turno)
             .options(joinedload(models.Turno.persona))
@@ -163,7 +159,7 @@ def personas_con_cancelados(min: int = Query(5, ge=1), db: Session = Depends(get
     return reportes
 
 
-# 🟩 Reporte 5: Turnos confirmados
+# Reporte 5: Turnos confirmados
 @router.get("/turnos-confirmados", response_model=list[schemas.TurnoOut])
 def turnos_confirmados(desde: date, hasta: date, page: int = 1, size: int = 5, db: Session = Depends(get_db)):
     skip = (page - 1) * size #paginacion, limit define cuantops traer
@@ -171,7 +167,7 @@ def turnos_confirmados(desde: date, hasta: date, page: int = 1, size: int = 5, d
     return crud.buscar_turnos(db, fecha_desde=desde, fecha_hasta=hasta, estado=ESTADO_TURNO_CONFIRMADO, skip=skip, limit=size)
 
 
-# 🟩 Reporte 6: Personas por estado (habilitadas o deshabilitadas)
+# Reporte 6: Personas por estado (habilitadas o deshabilitadas)
 @router.get("/estado-personas", response_model=list[schemas.PersonaConTurnosOut])
 def personas_por_estado(habilitada: bool, db: Session = Depends(get_db)):
     personas = (
@@ -184,7 +180,7 @@ def personas_por_estado(habilitada: bool, db: Session = Depends(get_db)):
     return personas
 
 
-# 🟩 Reporte 7: PDF de turnos cancelados del mes seleccionado
+# Reporte 7: PDF de turnos cancelados del mes seleccionado
 @router.get("/turnos-cancelados-pdf")
 def turnos_cancelados_pdf(
     mes: int = Query(..., ge=1, le=12),
@@ -238,43 +234,36 @@ def turnos_cancelados_pdf(
     ruta_archivo = os.path.join("pdf", nombre_archivo)
     return FileResponse(ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
 
-# 🟩 Reporte 8: PDF de turnos confirmados del mes actual
+# Reporte 8: PDF de turnos confirmados del mes actual
 @router.get("/turnos-confirmados-pdf")
-def descargar_pdf_turnos_confirmados(db: Session = Depends(get_db)):
-    today = date.today()
-    anio, mes = today.year, today.month
+def descargar_pdf_turnos_confirmados(
+    mes: int = Query(..., ge=1, le=12),
+    anio: int = Query(..., ge=2000),
+    db: Session = Depends(get_db)
+):
+    primer_dia = date(anio, mes, 1)
+    primer_dia_sgte = date(anio + (mes // 12), (mes % 12) + 1, 1)
 
     turnos = (
         db.query(models.Turno)
         .options(joinedload(models.Turno.persona))
-        .filter(models.Turno.estado == ESTADO_TURNO_CONFIRMADO)
-        .filter(func.strftime("%Y-%m", models.Turno.fecha) == f"{anio}-{mes:02d}")
+        .filter(
+            models.Turno.estado == ESTADO_TURNO_CONFIRMADO,
+            models.Turno.fecha >= primer_dia,
+            models.Turno.fecha < primer_dia_sgte
+        )
         .all()
     )
 
     if not turnos:
-        raise HTTPException(status_code=404, detail="No hay turnos confirmados este mes")
+        raise HTTPException(status_code=404, detail="No hay turnos confirmados en este mes")
 
-    for t in turnos:
-        if not t.persona:
-            raise HTTPException(status_code=500, detail=f"Turno {t.id} no tiene persona asociada")
-
-    try:
-        nombre_archivo = generar_pdf_turnos_confirmados(turnos, anio, month_name[mes].lower(), len(turnos))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
-
+    nombre_archivo = generar_pdf_turnos_confirmados(turnos, anio, month_name[mes].lower(), len(turnos))
     ruta_archivo = os.path.join("pdf", nombre_archivo)
-    if not os.path.exists(ruta_archivo):
-        raise HTTPException(status_code=500, detail="El archivo PDF no fue creado")
 
     return FileResponse(path=ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
 
-
-#PDF de personas
-from reportes_pdf import generar_pdf_personas
-
-# 🟩 Reporte 9: PDF de listado de personas
+# Reporte 9: PDF de listado de personas
 @router.get("/personas-pdf")
 def personas_pdf(db: Session = Depends(get_db)):
     personas = crud.listar_personas(db)
@@ -285,22 +274,3 @@ def personas_pdf(db: Session = Depends(get_db)):
     ruta_archivo = os.path.join("pdf", nombre_archivo)
 
     return FileResponse(ruta_archivo, media_type="application/pdf", filename=nombre_archivo)
-
-
-
-# pruebas de QR
-@router.get("/qr/confirmar/{turno_id}")
-def confirmar_turno_via_qr(turno_id: int, db: Session = Depends(get_db)):
-    turno = db.query(models.Turno).filter(models.Turno.id == turno_id).first()
-    if not turno:
-        raise HTTPException(status_code=404, detail="Turno no encontrado")
-
-    if turno.estado == ESTADO_TURNO_CONFIRMADO:
-        return {"mensaje": f"El turno {turno.id} ya estaba confirmado"}
-
-    turno.estado = ESTADO_TURNO_CONFIRMADO
-    db.commit()
-    db.refresh(turno)
-
-    return {"mensaje": f"Turno {turno.id} confirmado correctamente"}
-#por si quiero implementar en postman http://127.0.0.1:8000/reportes/qr/confirmar/3

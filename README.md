@@ -31,6 +31,18 @@ El desarrollo utiliza las siguientes tecnologías según la consigna del TP:
 •	requirements.txt — Dependencias del proyecto
 •	README.md — Documentación del proyecto
 
+# Levantar el proyecto:
+
+•	Clonar el repositorio: https://github.com/ZzzetaZoui/SL-UNLA-LAB-2025-GRUPO-N4.git
+•   Crear y activar entorno virtual: python -m venv\Scripts\activate 
+•   Instalar dependencias: pip install -r requirements.txt 
+•   Configurar variables de entorno
+•   Inicializar la base de datos
+•   Levantar el servidor FastAPI: uvicorn app:app --reload Por defecto se abre en: http://127.0.0.1:8000/ 
+•   Probar endpoints en Swagger UI: FastAPI genera la documentación automática: http://127.0.0.1:8000/docs Ahí podés probar turnos confirmados y turnos cancelados. 
+•   Carpeta de salida de PDFs: Los reportes se guardan en la carpeta pdf/. Cada vez que generás un reporte, se sobrescribe el archivo correspondiente.
+
+
 # Integrantes del Grupo N°4:
 
 Banfi, Zoe: https://github.com/ZzzetaZoui

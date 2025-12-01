@@ -9,6 +9,7 @@ import crud
 import reportes  # <-- Rutas de reportes
 import reportes_pdf # <-- exportaciones (nuevoo)
 import reportes_csv
+import models
 from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO, ESTADO_TURNO_CONFIRMADO, ESTADO_TURNO_PENDIENTE
 
 
@@ -112,11 +113,27 @@ def eliminar_turno(turno_id: int, db: Session = Depends(get_db)):
 
 @app.put("/turnos/{turno_id}/cancelar", response_model=schemas.TurnoOut)
 def cancelar_turno(turno_id: int, db: Session = Depends(get_db)):
+
     turno = crud.obtener_turno(db, turno_id)
     if not turno:
         raise HTTPException(status_code=404, detail="Turno no encontrado")
+
     if turno.estado in [ESTADO_TURNO_CANCELADO, ESTADO_TURNO_ASISTIDO]:
         raise HTTPException(status_code=400, detail="No se puede modificar un turno cancelado o asistido")
+
+
+    cancelados = (
+        db.query(models.Turno)
+        .filter(
+            models.Turno.persona_id == turno.persona_id,
+            models.Turno.estado == ESTADO_TURNO_CANCELADO
+        )
+        .count()
+    )
+
+    if cancelados >= 5:
+        raise HTTPException(status_code=400, detail="La persona ya alcanzó el máximo de 5 turnos cancelados")
+
     return crud.cambiar_estado_turno(db, turno_id, ESTADO_TURNO_CANCELADO)
 
 @app.put("/turnos/{turno_id}/confirmar", response_model=schemas.TurnoOut)

@@ -6,9 +6,11 @@ Materia: Seminario de Lenguajes – Python
 Grupo: N°4
 Año: 2025
 
+
 # Objetivo
 
 Desarrollar una API REST utilizando FastAPI para la gestión de turnos entre personas. El sistema permite realizar operaciones CRUD sobre personas y turnos, calcular turnos disponibles, y (en futuras etapas) generar reportes en distintos formatos.
+
 
 # Stack Tecnológico
 
@@ -21,6 +23,7 @@ El desarrollo utiliza las siguientes tecnologías según la consigna del TP:
 •	Uvicorn — Servidor ASGI para ejecutar la aplicación
 •	Pandas y Borb — para reportes en CSV y PDF, respectivamente
 
+
 # Estructura del Proyecto
 
 •	app.py — Punto de entrada principal (endpoints)
@@ -31,6 +34,7 @@ El desarrollo utiliza las siguientes tecnologías según la consigna del TP:
 •	requirements.txt — Dependencias del proyecto
 •	README.md — Documentación del proyecto
 
+
 # Levantar el proyecto:
 
 •	Clonar el repositorio: https://github.com/ZzzetaZoui/SL-UNLA-LAB-2025-GRUPO-N4.git
@@ -40,7 +44,6 @@ El desarrollo utiliza las siguientes tecnologías según la consigna del TP:
 •   Inicializar la base de datos
 •   Levantar el servidor FastAPI: uvicorn app:app --reload Por defecto se abre en: http://127.0.0.1:8000/ 
 •   Probar endpoints en Swagger UI: FastAPI genera la documentación automática: http://127.0.0.1:8000/docs Ahí podés probar turnos confirmados y turnos cancelados. 
-•   Carpeta de salida de PDFs: Los reportes se guardan en la carpeta pdf/. Cada vez que generás un reporte, se sobrescribe el archivo correspondiente.
 
 
 # Integrantes del Grupo N°4:
@@ -49,6 +52,7 @@ Banfi, Zoe: https://github.com/ZzzetaZoui
 Cerciosimo, Nicolás: https://github.com/NicoCercio12
 Contreras, Ariel: https://github.com/ArielCont
 Palladino, Wanda: https://github.com/palladinowanda
+
 
 # Videos del desarrollo del trabajo práctico:
 

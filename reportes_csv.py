@@ -1,6 +1,5 @@
 # reportes_csv.py
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import date
@@ -12,18 +11,20 @@ import models
 from database import get_db
 from config import ESTADO_TURNO_CANCELADO, ESTADO_TURNO_CONFIRMADO
 
+from io import BytesIO
+from fastapi.responses import StreamingResponse
+
 router = APIRouter()
 
 # -------------------------------------------------------------------
-# Función auxiliar para guardar CSV
+# Función para CSV
 # -------------------------------------------------------------------
-def guardar_csv(data: list[dict], nombre_archivo: str):
-    os.makedirs("csv", exist_ok=True)  # crea carpeta si no existe
-    ruta_csv = os.path.join("csv", nombre_archivo)
-    df = pd.DataFrame(data) #convierte la lista para que pandas pueda leerla
-    df.to_csv(ruta_csv, index=False)
-    print(f"✅ CSV generado: {ruta_csv}")
-    return ruta_csv
+def csv_en_memoria(data: list[dict]):
+    buffer = BytesIO()
+    df = pd.DataFrame(data)
+    df.to_csv(buffer, index=False, encoding="utf-8-sig")
+    buffer.seek(0)
+    return buffer
 
 # -------------------------------------------------------------------
 # REPORTE 7 - TURNOS CANCELADOS (CSV)
@@ -66,9 +67,15 @@ def turnos_cancelados_csv(
     ]
 
     nombre_archivo = f"reporte_cancelados_{month_name[mes].lower()}_{anio}.csv"
-    ruta_csv = guardar_csv(data, nombre_archivo)
+    buffer = csv_en_memoria(data)
 
-    return FileResponse(ruta_csv, media_type="text/csv", filename=nombre_archivo)
+    return StreamingResponse(
+        buffer,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_archivo}"'
+            }
+    )
 
 # -------------------------------------------------------------------
 # REPORTE 5 - TURNOS CONFIRMADOS (CSV)
@@ -108,7 +115,13 @@ def turnos_confirmados_csv(
         for t in turnos
     ]
 
-    nombre_archivo = f"reporteconfirmados{month_name[mes].lower()}{anio}.csv"
-    ruta_csv = guardar_csv(data, nombre_archivo)
+    nombre_archivo = f"reporteconfirmados_{month_name[mes].lower()}_{anio}.csv"
+    buffer = csv_en_memoria(data)
 
-    return FileResponse(ruta_csv, media_type="text/csv", filename=nombre_archivo)
+    return StreamingResponse(
+        buffer,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_archivo}"'
+            }
+    )
